@@ -30,7 +30,7 @@ set(CMAKE_ASM_NASM_FLAGS "-f elf64")
 # ---------------------
 # Global compiler flags
 # ---------------------
-set(CMAKE_C_FLAGS "-ffreestanding -m64 -O2 -Wall -Wextra")
+set(CMAKE_C_FLAGS "-ffreestanding -mno-red-zone -fno-pic -fno-pie -m64 -O2 -Wall -Wextra")
 
 # ---------------------
 # Linker flags

@@ -19,4 +19,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Add projects
 
+add_subdirectory(./src/kernel)
 add_subdirectory(./src/x86_64)
