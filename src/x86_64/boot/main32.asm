@@ -1,4 +1,4 @@
-global start
+global _start
 
 extern long_mode_start
 
@@ -12,7 +12,7 @@ NO_LONG_MODE_CODE   equ     "L"
 
 [bits 32]
 
-start:
+_start:
 
     mov     esp, stack_top
 

@@ -16,11 +16,10 @@ x86_64-iso: x86_64-debug
 x86_64-run: x86_64-iso
 	cmake --build --preset x86_64-debug --target qemu-x86_64-run
 
+x86_64-qemu-debug: x86_64-iso
+	cmake --build --preset x86_64-debug --target qemu-x86_64-gdb
+
 # Clean build directory via CMake
 clean:
 	rm -rf build
 # cmake --build --preset x86_64-debug --target clean
-
-# Run QEMU for kernel
-run: build
-	qemu-system-x86_64 -kernel $(shell cmake --build --preset $(CMAKE_PRESET) --target kernel --verbose | grep -oE '[^ ]+kernel$$' | tail -n1)

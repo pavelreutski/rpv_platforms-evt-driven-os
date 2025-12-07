@@ -1,4 +1,5 @@
-ENTRY(start)
+ENTRY(_start)
+OUTPUT_ARCH(i386:x86-64)
 
 PHDRS {
     text PT_LOAD FLAGS(5);   /* R + X */
