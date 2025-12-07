@@ -9,7 +9,7 @@
 
 #define CGA_COLOR(fore_c, back_c)           (fore_c | (back_c << 4))
 
-struct cga_char {
+struct __attribute__((packed, aligned(1))) cga_char {
 
     uint8_t code;
     uint8_t color;
@@ -17,12 +17,12 @@ struct cga_char {
 
 typedef struct cga_char cga_char_t;
 
-static size_t cursor_col;
-static size_t cursor_row;
+static size_t cursor_col = 0;
+static size_t cursor_row = 0;
 
 static uint8_t char_color =  CGA_COLOR(PRINT_COLOR_WHITE, PRINT_COLOR_BLACK);
 
-static cga_char_t *cga_buffer = (cga_char_t *) CGA_BUFFER_ADDR;
+static volatile cga_char_t *const cga_buffer = (volatile cga_char_t *const)(uintptr_t) CGA_BUFFER_ADDR;
 
 static void print_newLine(void);
 static void clear_row(size_t row);

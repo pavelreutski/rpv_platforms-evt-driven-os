@@ -1,0 +1,109 @@
+<svg width="1000" height="1600" xmlns="http://www.w3.org/2000/svg">
+<style>
+  text { font-family: Arial, sans-serif; font-size: 18px; }
+  rect { fill: white; stroke: black; stroke-width: 2; rx: 8; }
+  line, polyline { stroke: black; stroke-width: 2; fill: none; }
+</style>
+
+<!-- BOX 1 -->
+<rect x="150" y="20" width="700" height="100"/>
+<text x="180" y="60">Does the crash involve MMIO / hardware memory</text>
+<text x="180" y="90">(0xB8000, APIC, PCI, port I/O)?</text>
+
+<!-- Arrow -->
+<line x1="500" y1="120" x2="500" y2="170"/>
+<text x="455" y="155">YES</text>
+<text x="525" y="155">NO</text>
+
+<!-- Branch -->
+<polyline points="500,170 250,230"/>
+<polyline points="500,170 750,230"/>
+
+<!-- BOX 2A -->
+<rect x="50" y="230" width="400" height="150"/>
+<text x="70" y="270">MMIO path:</text>
+<text x="70" y="300">• Use volatile pointers/structs</text>
+<text x="70" y="330">• Use packed structs if needed</text>
+<text x="70" y="360">• Avoid padding or UB layout</text>
+
+<!-- BOX 2B -->
+<rect x="550" y="230" width="400" height="150"/>
+<text x="570" y="270">Non-MMIO path:</text>
+<text x="570" y="300">Does the code use inline ASM</text>
+<text x="570" y="330">or mix C + asm?</text>
+
+<!-- Arrows -->
+<line x1="250" y1="380" x2="250" y2="430"/>
+<line x1="750" y1="380" x2="750" y2="430"/>
+<text x="720" y="415">YES</text>
+<text x="765" y="415">NO</text>
+
+<!-- ASM YES branch -->
+<polyline points="750,430 500,500"/>
+
+<!-- BOX 3A -->
+<rect x="300" y="500" width="450" height="150"/>
+<text x="320" y="540">Inline ASM checklist:</text>
+<text x="320" y="570">• Missing "memory"/"cc" clobbers</text>
+<text x="320" y="600">• Wrong operand constraints</text>
+<text x="320" y="630">• Registers clobbered by ISR/calls</text>
+
+<!-- ASM NO branch -->
+<polyline points="750,430 950,500"/>
+
+<!-- BOX 3B -->
+<rect x="750" y="500" width="220" height="150"/>
+<text x="770" y="540">Pointer/array path:</text>
+<text x="770" y="570">• UB (OOB, misalign)</text>
+<text x="770" y="600">• Uninit vars</text>
+<text x="770" y="630">• Strict aliasing issues</text>
+
+<!-- From 3A -->
+<line x1="525" y1="650" x2="525" y2="700"/>
+<text x="500" y="690">NO</text>
+
+<!-- ISR YES -->
+<line x1="860" y1="650" x2="860" y2="700"/>
+<text x="840" y="690">YES</text>
+
+<!-- ISR box -->
+<rect x="600" y="700" width="350" height="160"/>
+<text x="620" y="740">ISR / Exception handling:</text>
+<text x="620" y="770">• 16-byte stack alignment</text>
+<text x="620" y="800">• Save/restore regs</text>
+<text x="620" y="830">• Correct iretq frame</text>
+
+<!-- Left branch to O0/O2 compare -->
+<polyline points="525,700 300,760"/>
+
+<!-- BOX Compare -->
+<rect x="50" y="760" width="350" height="200"/>
+<text x="70" y="800">Compare -O0 vs -O2 assembly:</text>
+<text x="70" y="830">grep differences</text>
+<text x="70" y="860">Look for:</text>
+<text x="90" y="890">• Removed stores/loads</text>
+<text x="90" y="920">• Reordered ops</text>
+<text x="90" y="950">• Wrong assumptions</text>
+
+<!-- Arrow -->
+<line x1="225" y1="960" x2="225" y2="1010"/>
+
+<!-- BOX Disable passes -->
+<rect x="50" y="1010" width="350" height="180"/>
+<text x="70" y="1050">Narrow optimization pass:</text>
+<text x="70" y="1080">Try:</text>
+<text x="90" y="1110">• -fno-strict-aliasing</text>
+<text x="90" y="1140">• -fno-tree-vectorize</text>
+<text x="90" y="1170">• -fno-aggressive-loop-optimizations</text>
+
+<!-- Arrow -->
+<line x1="225" y1="1190" x2="225" y2="1240"/>
+
+<!-- Final box -->
+<rect x="50" y="1240" width="350" height="180"/>
+<text x="70" y="1280">Final sanity checks:</text>
+<text x="70" y="1310">• Eval order assumptions?</text>
+<text x="70" y="1340">• Need fences? (memory barrier)</text>
+<text x="70" y="1370">• volatile / packed / const correct?</text>
+
+</svg>

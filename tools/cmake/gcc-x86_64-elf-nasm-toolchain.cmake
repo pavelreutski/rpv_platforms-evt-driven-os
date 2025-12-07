@@ -12,8 +12,9 @@ set(CROSS x86_64-elf)
 # ----------------
 # Compiler / tools
 # ----------------
-set(CMAKE_C_COMPILER   ${CROSS}-gcc)
 set(CMAKE_ASM_NASM_COMPILER nasm)
+
+set(CMAKE_C_COMPILER   ${CROSS}-gcc)
 set(CMAKE_LINKER       ${CROSS}-ld)
 set(CMAKE_AR           ${CROSS}-ar)
 set(CMAKE_OBJCOPY      ${CROSS}-objcopy)
@@ -30,12 +31,31 @@ set(CMAKE_ASM_NASM_FLAGS "-f elf64")
 # ---------------------
 # Global compiler flags
 # ---------------------
-set(CMAKE_C_FLAGS "-ffreestanding -mno-red-zone -fno-pic -fno-pie -m64 -O0 -g -Wall -Wextra")
+
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:C>:-m64>
+    $<$<COMPILE_LANGUAGE:C>:-ffreestanding>
+    $<$<COMPILE_LANGUAGE:C>:-fno-pic>
+    $<$<COMPILE_LANGUAGE:C>:-fno-pie>
+    $<$<COMPILE_LANGUAGE:C>:-fno-omit-frame-pointer>
+    $<$<COMPILE_LANGUAGE:C>:-fno-stack-protector>
+    $<$<COMPILE_LANGUAGE:C>:-fno-strict-aliasing>
+    $<$<COMPILE_LANGUAGE:C>:-O2>
+    $<$<COMPILE_LANGUAGE:C>:-g>
+    $<$<COMPILE_LANGUAGE:C>:-Wall>
+    $<$<COMPILE_LANGUAGE:C>:-Wextra>
+)
 
 # ---------------------
 # Linker flags
 # ---------------------
-set(CMAKE_EXE_LINKER_FLAGS "-nostdlib")
+
+add_link_options(-nostdlib
+                -nostartfiles
+                -nodefaultlibs
+                -static
+                -zmax-page-size=0x1000
+                -znoexecstack)
 
 # Prevent CMake from adding system libs
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
