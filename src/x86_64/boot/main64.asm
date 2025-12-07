@@ -1,4 +1,5 @@
 global long_mode_start
+extern stack_top, kernel_main
 
 [section .text]
 
@@ -14,8 +15,5 @@ long_mode_start:
     mov     fs, ax
     mov     gs, ax
 
-    ; print 'OK'
-    mov     edi, 0xb8000
-    mov     dword [edi], 0x2f4b2f4f ; OK with 2f char attr
-
-    hlt
+    mov     rsp, stack_top
+    jmp     kernel_main

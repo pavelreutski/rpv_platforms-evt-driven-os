@@ -3,6 +3,7 @@
 build/*
 
 # ignored files from VSCode
+.vscode
 .vscode/*
 
 #######################################################
