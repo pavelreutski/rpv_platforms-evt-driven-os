@@ -1,5 +1,11 @@
 global _long_mode_start
-extern stack_top, kernel_main
+
+extern idtr, stack_top
+extern idt_set_gate
+
+extern _isr_keyboard
+
+extern _kernel_main
 
 [section .text]
 
@@ -15,5 +21,14 @@ _long_mode_start:
     mov     fs, ax
     mov     gs, ax
 
+    cli
+
+    mov     rdi, 0x21          
+    mov     rsi, _isr_keyboard
+
+    call    idt_set_gate ; remap IRQ1 -> 0x21 IDT entry (vector)
+
+    lidt    [idtr]
+
     mov     rsp, stack_top
-    jmp     kernel_main
+    jmp     _kernel_main
