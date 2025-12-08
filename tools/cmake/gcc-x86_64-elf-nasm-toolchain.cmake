@@ -27,7 +27,7 @@ set(CMAKE_READELF      ${CROSS}-readelf)
 # Enable ASM_NASM
 # ------------------------------
 set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
-set(CMAKE_ASM_NASM_FLAGS "-f elf64")
+set(CMAKE_ASM_NASM_FLAGS "-f elf64 -g -F dwarf")
 
 # ---------------------
 # Global compiler flags

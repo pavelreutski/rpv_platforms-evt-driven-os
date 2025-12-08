@@ -1,6 +1,6 @@
 global _start
 
-extern long_mode_start
+extern _long_mode_start
 
 extern stack_top, gdt64.pointer, gdt64.code_segment, page_table_l2, page_table_l3, page_table_l4
 
@@ -24,7 +24,7 @@ _start:
     call    enable_paging
 
     lgdt    [gdt64.pointer]
-    jmp     gdt64.code_segment:long_mode_start
+    jmp     gdt64.code_segment:_long_mode_start
 
 check_multiboot:
     cmp     eax, 0x36d76289

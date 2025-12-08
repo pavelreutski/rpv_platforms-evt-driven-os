@@ -1,11 +1,11 @@
-global long_mode_start
+global _long_mode_start
 extern stack_top, kernel_main
 
 [section .text]
 
 [bits 64]
 
-long_mode_start:
+_long_mode_start:
 
     xor     ax, ax ; load null into all data segment registers
 
