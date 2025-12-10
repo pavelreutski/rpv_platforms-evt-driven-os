@@ -25,8 +25,8 @@ idt64: times IDT_ENTRIES   resb    idt_entry_size
 
 idtr:
 
-    dw      (IDT_ENTRIES * idt_entry_size) - 1
-    dq      idt64          
+    dw      (IDT_ENTRIES * idt_entry_size) - 1 ; limit
+    dq      idt64                              ; base
 
 [section .text]
 

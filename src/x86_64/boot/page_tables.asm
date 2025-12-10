@@ -1,4 +1,8 @@
-global page_table_l2, page_table_l3, page_table_l4
+global page_table_l2
+global page_table_l3
+global page_table_l4
+
+global page_table_mmio
 
 [section .bss]
 
@@ -12,3 +16,6 @@ page_table_l3:
 
 page_table_l2:
     resb    4096
+
+page_table_mmio:  ; page table for MMIO - 4Mb space for huge pages
+    resb    16

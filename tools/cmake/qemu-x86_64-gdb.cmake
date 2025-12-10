@@ -13,13 +13,13 @@ function(gdb_qemu_iso ISO_TARGET)
     set(ISO_FILE $<TARGET_FILE_DIR:${ISO_TARGET}>/${ISO_TARGET}.iso)
 
     add_custom_target(qemu-x86_64-gdb
-        COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE} -s -S
+        COMMAND qemu-system-x86_64 -m 512M -cdrom ${ISO_FILE} -s -S
         DEPENDS ${ISO_TARGET}
         COMMENT "Debug kernel ISO via QEMU"
     )
 
     add_custom_target(qemu-x86_64-run
-        COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE}
+        COMMAND qemu-system-x86_64 -m 512M -cdrom ${ISO_FILE}
         DEPENDS ${ISO_TARGET}
         COMMENT "Run kernel ISO in QEMU"
     )
