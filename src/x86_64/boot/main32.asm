@@ -4,20 +4,21 @@ global _start
 extern _long_mode_start
 
 ; stack
-extern stack_top
+extern _stack_top
 
 ; page tables
 
-extern page_table_l3
-extern page_table_l4
-extern page_table_l2
+extern _page_table_l3
+extern _page_table_l4
+extern _page_table_l2
 
-extern page_table_mmio
+extern _page_table_mmio
 
 ; GDT64
 extern gdt64.pointer, gdt64.code_segment
 
 NO_CPUID_CODE       equ     "C"
+NO_LAPIC_CODE       equ     "A"
 NO_MULTIBOOT_CODE   equ     "M"
 NO_LONG_MODE_CODE   equ     "L"
 
@@ -27,10 +28,12 @@ NO_LONG_MODE_CODE   equ     "L"
 
 _start:
 
-    mov     esp, stack_top
+    mov     esp, _stack_top
 
     call    check_multiboot
     call    check_cpuid
+
+    call    check_lapic
     call    check_long_mode
 
     call    setup_page_tables    
@@ -71,6 +74,18 @@ check_cpuid:
     mov     al, NO_CPUID_CODE
     jmp     error
 
+check_lapic:
+    mov     eax, 1
+    cpuid
+
+    test    edx, (1 << 9) ; <- test for LAPIC bit
+    jz      .no_lapic
+    ret
+
+.no_lapic:
+    mov     al, NO_LAPIC_CODE
+    jmp     error
+
 check_long_mode:
     mov     eax, 0x80000000 ; <- query extended cpuid
     cpuid
@@ -90,13 +105,13 @@ check_long_mode:
     jmp     error
 
 setup_page_tables:
-    mov     eax, page_table_l3
+    mov     eax, _page_table_l3
     or      eax, 0b11          ; enable present and read/write flags
-    mov     [page_table_l4], eax
+    mov     [_page_table_l4], eax
 
-    mov     eax, page_table_l2
+    mov     eax, _page_table_l2
     or      eax, 0b11          ; enable present and read/write flags
-    mov     [page_table_l3], eax
+    mov     [_page_table_l3], eax
 
     ; general memory (1 Gb)
     
@@ -104,9 +119,9 @@ setup_page_tables:
     ; physical: 0x00000000–0x3FFFFFFF
 
     xor     ecx, ecx
-    mov     edi, page_table_l2
+    mov     edi, _page_table_l2
 
-.loop:
+.map_gmem_loop:
 
     mov     eax, 0x200000       ; 2 Mb
     mul     ecx
@@ -117,35 +132,40 @@ setup_page_tables:
     inc     ecx
 
     cmp     ecx, 512            ; check if a whole table is mapped
-    jnz     .loop
+    jnz     .map_gmem_loop
 
     ; MMIO memory (4 Mb)
 
     ; virtual : 0x40000000 - 0x403FFFFF
     ; physical: 0xFEC00000 - 0xFEFFFFFF
 
-    mov     edi, page_table_mmio
-
-    mov     eax, 0xFEC00000
-    or      eax, 0b10010011     ; enable present & read/write & none cachable & huge page flags
-
-    mov     [edi], eax
-
-    mov     eax, 0xFEE00000
-    or      eax, 0b10010011     ; enable present & read/write & none cachable & huge page flags
-
-    mov     [edi + 8], eax
-
-    mov     edi, page_table_l3
-    mov     eax, page_table_mmio
+    mov     edi, _page_table_l3
+    mov     eax, _page_table_mmio
     or      eax, 0b11           ; enable present & read/write page flags
 
-    mov     [edi + 8], eax
+    mov     [edi + 8], eax      ; second entry of a page directory
+
+    xor     ecx, ecx
+    mov     edi, _page_table_mmio
+
+.map_mmio_loop:
+
+    mov     eax, 0x200000       ; 2 Mb
+    mul     ecx
+    add     eax, 0xFEC00000
+
+    or      eax, 0b10010011     ; enable present & read/write & none cachable & huge page flags
+    mov     [edi + ecx * 8], eax
+
+    inc     ecx
+
+    cmp     ecx, 2
+    jnz     .map_mmio_loop
 
     ret
 
 enable_paging:
-    mov     eax, page_table_l4
+    mov     eax, _page_table_l4
     mov     cr3, eax           ; pass page table location to cpu
 
     ; enable PAE
@@ -176,4 +196,6 @@ error:
 
     mov     byte [edi + 10], al ; error code
 
+.hlt_loop:
     hlt
+    jmp     .hlt_loop

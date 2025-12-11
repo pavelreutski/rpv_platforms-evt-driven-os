@@ -1,13 +1,9 @@
 global _long_mode_start
 
-extern idtr, stack_top
+extern _stack_top
 
-extern lapic_enable
-extern ioapic_redirect_irq
-
-extern idt_set_gate
-
-extern _isr_keyboard
+extern _ps2_controller
+extern _irqs_exceptions
 
 extern _kernel_main
 
@@ -27,19 +23,13 @@ _long_mode_start:
 
     cli
 
-    mov     rdi, 0x21          
-    mov     rsi, _isr_keyboard
-    call    idt_set_gate ; set and enable 0x21 IDT entry (vector)
+    ; PS/2 controller
+    call    _ps2_controller
+    
+    ; Hardware IRQs and CPU exceptions
+    call    _irqs_exceptions
 
-    lidt    [idtr]
-
-    call    lapic_enable
-
-    mov     rdi, 1
-    mov     rsi, 0x21
-    call    ioapic_redirect_irq ; remap IRQ1 -> 0x21 vector
-
-    mov     rsp, stack_top
+    mov     rsp, _stack_top
     sti
     
     jmp     _kernel_main

@@ -1,21 +1,30 @@
-global  lapic_enable
+global  _lapic_eoi
+global  _lapic_enable
 
 SVR_REG             equ     0xF0
-LAPIC_ADDRESS       equ     0x40200000
+EOI_REG             equ     0xB0
+
+LAPIC_BASE_ADDR     equ     0x40200000 ; virtual address
+
+LAPIC_SVR           equ     (LAPIC_BASE_ADDR + SVR_REG)
+LAPIC_EOI           equ     (LAPIC_BASE_ADDR + EOI_REG)
 
 [section .text]
 
 [bits 64]
 
-lapic_enable:
+_lapic_eoi:
+
+        mov     dword [LAPIC_EOI], 0
+        ret
+
+_lapic_enable:
+
         push    rax
         push    rcx
         push    rdx
 
-        push    rsi
-
         ; disable legacy PIC master/slave
-
         call    pic_disable
 
         ; enable lapic
@@ -34,13 +43,9 @@ lapic_enable:
 
         ; enable lapic spurious irqs
 
-        mov     rsi, LAPIC_ADDRESS
-        mov     eax, [rsi + SVR_REG]
-
+        mov     eax, [LAPIC_SVR]
         or      eax, 0x100
-        mov     [rsi + SVR_REG], eax
-
-        pop     rsi
+        mov     [LAPIC_SVR], eax
 
         pop     rdx
         pop     rcx

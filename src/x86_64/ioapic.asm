@@ -1,4 +1,4 @@
-global ioapic_redirect_irq
+global _ioapic_redirect_irq
 
 IOAPIC_ADDRESS      equ     0x40000000
 
@@ -12,7 +12,7 @@ IOAPIC_WINDOW       equ     0x10
 ; rdi <- irq_n
 ; rsi <- idt gate vector number
 
-ioapic_redirect_irq:
+_ioapic_redirect_irq:
 
         push    rax
         push    rbx
