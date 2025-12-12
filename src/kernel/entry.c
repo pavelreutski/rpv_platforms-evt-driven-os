@@ -4,7 +4,7 @@
 
 /// @brief kernel entry point
 /// @param none
-void __attribute__((sysv_abi)) _kernel_main(void) {
+void __attribute__((sysv_abi)) _cstart_entry(void) {
     
     print_clear();
     print_color(PRINT_COLOR_YELLOW, PRINT_COLOR_BLACK);

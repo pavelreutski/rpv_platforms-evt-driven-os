@@ -26,8 +26,7 @@ endstruc
 
 [section .bss]
 
-idt64:  
-        times IDT_ENTRIES   resb    idt_entry_size
+idt64:  times IDT_ENTRIES   resb    idt_entry_size
 
 [section .rodata]
 
@@ -55,7 +54,7 @@ _irqs_exceptions:
         
         call    _lapic_enable
 
-        ; IRQs to vectors mapping (shift hardware IRQs > 32 since 0 - 32 vectors are CPU exceptions)
+        ; IRQs to vectors mapping (shift hardware IRQs > 31 since 0 - 31 vectors are CPU exceptions)
 
         mov     rdi, 1
         mov     rsi, 0x21

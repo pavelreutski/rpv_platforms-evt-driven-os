@@ -5,7 +5,7 @@ extern _stack_top
 extern _ps2_controller
 extern _irqs_exceptions
 
-extern _kernel_main
+extern _cstart_entry
 
 [section .text]
 
@@ -32,4 +32,4 @@ _long_mode_start:
     mov     rsp, _stack_top
     sti
     
-    jmp     _kernel_main
+    jmp     _cstart_entry ; C kernel entry

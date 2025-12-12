@@ -10,7 +10,11 @@ add_executable(${PROJECT_NAME})
 target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_C_SOURCES})
 
-target_include_directories(${PROJECT_NAME} PUBLIC ./include)
+target_include_directories(${PROJECT_NAME} PUBLIC ./include
+                                                  ./include/stdc
+                                                  ./include/core
+                                                  ./include/services)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -O2 -g
