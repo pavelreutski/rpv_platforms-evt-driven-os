@@ -85,7 +85,7 @@ service_status_codes_t _service_push_events() {
 
 	do {
 
-		//// Pull next event
+		// Pull next event
 
 		RecvEvt =
 				&Events[EvtHead % MAX_QUEUE_EVENTS];
@@ -93,7 +93,7 @@ service_status_codes_t _service_push_events() {
 		EvtHead++;
 		FreeEvents++;
 
-		//// Invoke Kernel/User subscribers
+		// Invoke Kernel/User subscribers
 
 		evt_subscription_token_t *token = &EvtTokens[RecvEvt -> evtId];
 
@@ -112,26 +112,26 @@ service_status_codes_t _service_push_events() {
 void _kernel_publish_evt(uint8_t evtId, evt_data_t* evtData) {
 
 	if (Process &&
-			(evtId < USER_EVENTS_POOL)) return; //// Process tries publish kernel events
+			(evtId < USER_EVENTS_POOL)) return; // Process tries publish kernel events
 
 	enqueEvt(evtId, evtData);
 }
 
 void _kernel_subscribe_evt(uint8_t evt, evt_subscriber subscriber) {
 
-	if (evt < USER_EVENTS_POOL) return;  //// Only user events subscriptions allowed with this call for both Kernel and User
+	if (evt < USER_EVENTS_POOL) return;  // Only user events subscriptions allowed with this call for both Kernel and User
 
 	evt_subscription_token_t* token = &EvtTokens[evt];
 
 	if (token -> nUserEvtSubscribers == MAX_EVT_SUBSCRIBERS) return;
 
-	if (!((uint32_t) token -> user_subscribers[
-								token -> nUserEvtSubscribers - 1] ^ (uint32_t) subscriber)) return;
+	if (!((size_t) token -> user_subscribers[
+								token -> nUserEvtSubscribers - 1] ^ (size_t) subscriber)) return;
 
 	uint8_t processEvtToken =
 			evt % USER_EVENTS_POOL;
 
-	//// When process subscription but already subscribed
+	// When process subscription but already subscribed
 
 	if (Process &&
 			Process -> evtTokens[processEvtToken]) {
@@ -146,7 +146,7 @@ void _kernel_subscribe_evt(uint8_t evt, evt_subscriber subscriber) {
 	token -> user_subscribers[
 				token -> nUserEvtSubscribers++] = subscriber;
 
-	//// When not a process subscription
+	// When not a process subscription
 	if (!Process) return;
 
 	Process -> evtTokens[processEvtToken] = token;
@@ -155,7 +155,7 @@ void _kernel_subscribe_evt(uint8_t evt, evt_subscriber subscriber) {
 
 void _kernel_subscribe_kernel_evt(uint8_t evt, evt_subscriber subscriber) {
 
-	if (Process) return; //// Subscribing kernel events by the Process is not allowed
+	if (Process) return; // Subscribing kernel events by the Process is not allowed
 
 	evt_subscription_token_t* token = &EvtTokens[evt];
 	if (!(token -> nKernelEvtSubscribers ^ MAX_EVT_SUBSCRIBERS)) return;
@@ -168,7 +168,7 @@ void _kernel_exec_f(
 		int argc, const char **argv) {
 
 	if (!(ExecProc ^ MAX_EXEC_PROC_ALLOWED))
-		return; //// [DEBUG]: Running more than one user process isn`t allowed yet
+		return; // [DEBUG]: Running more than one user process isn`t allowed yet
 
 	exec_proccess_t *proc =
 			(Processes + ExecProc);
@@ -199,7 +199,7 @@ void _kernel_context_flags(uint16_t setFlags, uint16_t **ctxFlags) {
 	**ctxFlags |= setFlags;
 }
 
-//// -------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------
 
 static uint16_t *getContextFlags() {
 	return Process ?
@@ -243,12 +243,12 @@ static void makeProcessExecWhenRequested() {
 
 	if (!ExecProc) return;
 	if (Process &&
-			!((Process -> id) ^ ExecProc)) return; //// When OS pipeline is invoked from the current process
+			!((Process -> id) ^ ExecProc)) return; // When OS pipeline is invoked from the current process
 
 	runExecCtx();
 
 	ExecProc--;
-	Process = ExecProc ? Process + (ExecProc - 1) : NULL; //// Pop previouse process or NULL when the bottom most stack process is finished
+	Process = ExecProc ? Process + (ExecProc - 1) : NULL; // Pop previouse process or NULL when the bottom most stack process is finished
 }
 
 static void runExecCtx() {
@@ -269,11 +269,11 @@ static void runExecCtx() {
 
 	exec_callee_addr(argc, argv);
 
-	//// Unsubscribe just finished process
+	// Unsubscribe just finished process
 
 	if (Process -> subscriptions)
 		unsubscribeExecCtx();
 
-	//// Publish process finished event
+	// Publish process finished event
 	enqueEvt(EVT_PROG_PROCESS_FINISHED, NULL);
 }
