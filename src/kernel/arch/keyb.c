@@ -2,9 +2,7 @@
 #include <string.h>
 
 #include "print.h"
-#include "events.h"
-
-#include "kernel_events_aggregate.h"
+#include "kernel.h"
 
 #define MAX_KEYS_QUEUE  (10)
 

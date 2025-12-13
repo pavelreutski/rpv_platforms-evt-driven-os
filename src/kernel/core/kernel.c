@@ -1,14 +1,12 @@
 #include <string.h>
+#include <stdint.h>
 
 #include "kernel.h"
 #include "kernel_context.h"
 
 #include "kernel_exec.h"
-#include "kernel_events_aggregate.h"
 
 #include "service_host.h"
-
-#include "events.h"
 #include "events_service.h"
 
 #define USER_EVENTS_POOL               (50)

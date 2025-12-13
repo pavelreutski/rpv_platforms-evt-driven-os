@@ -1,6 +1,6 @@
 #include <stddef.h>
 
-size_t __attribute__((noinline)) strlen (const char *__s) {
+size_t __attribute__((noinline)) strlen(const char *__s) {
 
     size_t length = 0;
 

@@ -49,11 +49,11 @@ void print_char(const char c) {
         return;
     }
 
-    if (cursor_col > CGA_NUM_COLS) {
+    if (cursor_col >= CGA_NUM_COLS) {
         print_newLine();
     }
 
-    cga_buffer[cursor_col + cursor_row * CGA_NUM_ROWS] = 
+    cga_buffer[cursor_col + cursor_row * CGA_NUM_COLS] = 
         (cga_char_t) { code : (uint8_t) c, color : char_color };
 
     cursor_col++;
@@ -84,7 +84,7 @@ static void print_newLine(void) {
 
     cursor_col = 0;
 
-    if (cursor_row < CGA_NUM_ROWS) {
+    if (cursor_row < (CGA_NUM_ROWS - 1)) {
 
         cursor_row++;
         return;
