@@ -1,15 +1,12 @@
-#include <stdbool.h>
-
-#include "print.h"
+#include "shell.h"
+#include "kernel_stdio.h"
 
 /// @brief kernel entry point
 /// @param none
 void __attribute__((sysv_abi)) _cstart_entry(void) {
     
-    print_clear();
-    print_color(PRINT_COLOR_YELLOW, PRINT_COLOR_BLACK);
+    _kernel_stdio();
+    _kernel_outString("Starting RPV (Co) Event Driven OS...\n");
 
-    print_string("Welcome to our 64-bit kernel !");
-
-    while (true) { }
+    _shell_start();
 }

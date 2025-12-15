@@ -136,7 +136,7 @@ void _kernel_subscribe_evt(uint8_t evt, evt_subscriber subscriber) {
 
 		token ->
 			user_subscribers[
-			      token -> nUserEvtSubscribers - 1] = subscriber; //// Override with new subscriber
+			      token -> nUserEvtSubscribers - 1] = subscriber; // Override with new subscriber
 
 		return;
 	}

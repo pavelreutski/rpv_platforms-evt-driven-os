@@ -1,7 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+
 /// @brief defines user events in kernel (extendable by last member)
-typedef enum : uint8_t {
+typedef enum {
 
 	EVT_USERCON_KEY = 50,	
 	EVT_SYS_USER_EVENTS
@@ -9,7 +11,7 @@ typedef enum : uint8_t {
 } user_events_t;
 
 /// @brief define kernel events (not accessible for user subscriptions)
-typedef enum : uint8_t {
+typedef enum {
 
 	EVT_ONESHOT_TICK,
 	EVT_PERIODIC_TICK,

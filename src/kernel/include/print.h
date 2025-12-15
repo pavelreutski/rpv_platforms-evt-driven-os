@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 enum {
 
@@ -28,3 +29,5 @@ void print_color(uint8_t fore_color, uint8_t back_color);
 
 void print_char(const char c);
 void print_string(const char *s);
+
+void print_xy(size_t x, size_t y);
