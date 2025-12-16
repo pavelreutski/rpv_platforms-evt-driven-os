@@ -21,8 +21,14 @@ enum {
     PRINT_COLOR_PINK,
     PRINT_COLOR_YELLOW,
     PRINT_COLOR_WHITE
-
 };
+
+typedef struct {
+
+    size_t x;
+    size_t y;
+
+} cursor_t;
 
 void print_clear(void);
 void print_color(uint8_t fore_color, uint8_t back_color);
@@ -30,4 +36,5 @@ void print_color(uint8_t fore_color, uint8_t back_color);
 void print_char(const char c);
 void print_string(const char *s);
 
-void print_xy(size_t x, size_t y);
+void print_getxy(cursor_t *cur);
+void print_setxy(cursor_t const* cur);

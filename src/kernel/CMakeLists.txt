@@ -13,7 +13,8 @@ target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_C_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ./include
                                                   ./include/stdc
                                                   ./include/core
-                                                  ./include/services)
+                                                  ./include/services
+                                                  ./include/arch/x86)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap)
 

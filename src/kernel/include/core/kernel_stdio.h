@@ -16,6 +16,7 @@ void _kernel_outByte(const uint8_t byte);
 
 void _kernel_outChar(const char code);
 void _kernel_outString(const char* str);
+void _kernel_outStringFormat(const char *fmt, ...);
 
 void _kernel_gotoXY(uint16_t x, uint16_t y);
 

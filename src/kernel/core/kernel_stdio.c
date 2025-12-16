@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdarg.h>
 
 #include "events.h"
 #include "console.h"
@@ -13,7 +14,7 @@ static void onKernel_keyPressed(evt_data_t *evtData);
 
 void _kernel_stdio(void) {
 
-	set_console(CON_VGA);
+	set_console();
 	_kernel_subscribe_kernel_evt(
 				EVT_USERCON_KEY, onKernel_keyPressed);
 }
@@ -48,6 +49,50 @@ void _kernel_outString(const char* str) {
 
 void _kernel_gotoXY(uint16_t x, uint16_t y) {
 	out_XY(x, y);
+}
+
+void _kernel_outStringFormat(const char *fmt, ...) {
+
+	va_list args;
+	va_start(args, fmt);
+
+	while(*fmt) {
+
+		if (*fmt != '%') {
+
+			out_Char(*fmt);
+
+			fmt++;
+			continue;
+		}
+
+		const char fmt_c = *(fmt + 1);
+		fmt += 2;
+
+		switch(fmt_c) {
+
+		case '\0':  {
+
+			va_end(args);
+			return;
+		} break;
+
+		case 's':  { 
+			const char *s = va_arg(args, const char *);
+			out_String(s);
+		} break;
+
+		case 'd': {
+			const int i = va_arg(args, const int);
+			out_Int(i);
+		} break;
+
+		default: { out_Char(fmt_c); } break;
+
+		}
+	}
+
+	va_end(args);
 }
 
 bool _kernel_tryGetKey(console_key_t *key) {

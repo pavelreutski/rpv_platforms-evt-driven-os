@@ -2,15 +2,8 @@
 
 size_t __attribute__((noinline)) strlen(const char *__s) {
 
-    size_t length = 0;
-
-    if (__s == NULL) return length;
-    while(*__s) {
-        __s++;
-        length++;
-    }
-
-    return length;
+    extern size_t __attribute__((sysv_abi)) _arch_strlen(char const*);
+    return _arch_strlen(__s);
 }
 
 char * __attribute__((noinline)) strchr (const char *__s, int __c) {

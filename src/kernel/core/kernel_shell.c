@@ -334,15 +334,9 @@ static uint8_t onVer_display(char* input, uint8_t nArgsLen) {
 	(void) input;
 	(void) nArgsLen;
 
-	char version[sizeof(COMMAND_COM_VER_MSG)
-			 + sizeof(VER_REVISION)];
-
-	/* sprintf(version,
-			COMMAND_COM_VER_MSG,
-				VER_MAJOR, VER_MINOR, VER_PATCH, VER_REVISION); */ // todo: implement formatted output (aka printf)
-	
-	strcpy(version, COMMAND_COM_VER_MSG);
-	_kernel_outString(version);
+	_kernel_outStringFormat(
+		COMMAND_COM_VER_MSG, 
+			VER_MAJOR, VER_MINOR, VER_PATCH, VER_REVISION);
 
 	return EXEC_BUILT_IN;
 }
