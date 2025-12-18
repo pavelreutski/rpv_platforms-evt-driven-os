@@ -4,9 +4,11 @@
 #include <stdbool.h>
 
 #include "shell.h"
+#include "diskio.h"
 #include "events.h"
 
 #include "kernel.h"
+#include "kernel_fio.h"
 #include "kernel_stdio.h"
 #include "kernel_exec.h"
 
@@ -35,7 +37,7 @@
 
 #define COMMAND_COM_VER_MSG                      ("Event Driven OS [Version %d.%d.%d-%s]\n")
 
-#define CMD_SHELL_COPYRIGHT_MSG                  ("(C)RPV Co 2004-2019.\n")
+#define CMD_SHELL_COPYRIGHT_MSG                  ("(C)RPV Co 2004-2025.\n")
 #define CMD_SHELL_WELCOME_MSG                    ("RPVCo(R) Command Shell Program\n")
 
 typedef enum {
@@ -98,6 +100,7 @@ static uint8_t onType_exec(char* input, uint8_t nArgsLen);
 
 //// Disk Operations
 
+static uint8_t onDisk_info(char* input, uint8_t nArgsLen);
 static uint8_t onDisk_mkDir(char* input, uint8_t nArgsLen);
 static uint8_t onDiskFile_rm(char* input, uint8_t nArgsLen);
 static uint8_t onDisk_chDir(char* input, uint8_t nArgsLen);
@@ -118,7 +121,8 @@ static command_t Commands[MAX_COMMANDS] =
 				{ "cd", onDisk_chDir },
 				{ "rm", onDiskFile_rm },
 				{ "rmdir", onDiskFile_rm },
-				{ "mkdir", onDisk_mkDir }
+				{ "mkdir", onDisk_mkDir },
+				{ "disks", onDisk_info }
 		};
 
 //// Never returns
@@ -132,6 +136,8 @@ void _shell_start() {
 
 	_kernel_subscribe_kernel_evt(
 			0xff, onProg_processFinished);
+
+	_kernel_fio();
 	
 	_kernel_outLn();
 	_kernel_outTab();
@@ -367,6 +373,24 @@ static uint8_t onVideoDevice_statQuery(char* input, uint8_t nArgsLen) {
 }
 
 //// Disk Operations
+
+static uint8_t onDisk_info(char* input, uint8_t nArgsLen) {
+
+	(void) input;
+	(void) nArgsLen;
+
+	size_t n_disks = get_disks();
+
+	for (size_t i = 0; i < n_disks; i++) {
+
+		char dsk_info[255];
+		get_diskInfo(i, dsk_info, sizeof(dsk_info));
+
+		_kernel_outStringFormat("%s\n", dsk_info);		
+	}
+
+	return EXEC_BUILT_IN;
+}
 
 static uint8_t onDiskFile_rm(char* input, uint8_t nArgsLen) {
 

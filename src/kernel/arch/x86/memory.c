@@ -24,6 +24,12 @@ int __attribute__((noinline)) strncmp (const char *__s1, const char *__s2, size_
     return _arch_strncmp(__s1, __s2, __n);
 }
 
+char * __attribute__((noinline)) strcat (char *__dest, const char *__src) {
+
+    extern char * __attribute__((sysv_abi)) _arch_strcat(char *__dest, const char *__src);
+    return _arch_strcat(__dest, __src);
+}
+
 char * __attribute__((noinline)) strcpy (char *restrict __dest, const char *restrict __src) {
 
     extern char* __attribute__((sysv_abi)) _arch_strcpy(char *, char const*);

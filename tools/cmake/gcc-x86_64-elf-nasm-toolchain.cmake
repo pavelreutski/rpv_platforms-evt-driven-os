@@ -2,6 +2,15 @@
 # x86_64-elf bare-metal toolchain (C only and NASM)
 # ================================
 
+# ----------------
+# Locate x86_64-elf-gcc in PATH
+# ----------------
+
+find_program(CROSS_GCC x86_64-elf-gcc)
+
+get_filename_component(CROSS_BIN_DIR "${CROSS_GCC}" DIRECTORY)   # .../bin
+get_filename_component(CROSS_PREFIX "${CROSS_BIN_DIR}" DIRECTORY) # .../ (prefix)
+
 # Target system
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
@@ -29,6 +38,11 @@ set(CMAKE_READELF      ${CROSS}-readelf)
 
 add_compile_options(
     "$<$<COMPILE_LANGUAGE:C>:-m64;-Wall;-Wextra>")
+
+# ---------------------
+# Include directories
+# ---------------------
+include_directories("${CROSS_PREFIX}/include")
 
 # Prevent CMake from adding system libs
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)

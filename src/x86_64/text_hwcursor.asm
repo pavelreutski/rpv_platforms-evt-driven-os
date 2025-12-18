@@ -1,5 +1,7 @@
 global _arch_hide_cursor, _arch_show_cursor, _arch_set_cursor_pos
 
+VGA_TEXT_COLUMNS                equ     80
+
 VGA_REG_DATA_PORT               equ     0x3D5
 VGA_REG_ADDRESS_PORT            equ     0x3D4
 
@@ -62,7 +64,7 @@ _arch_hide_cursor:
 
 _arch_set_cursor_pos:
 
-            imul    rdi, 80
+            imul    rdi, VGA_TEXT_COLUMNS
             add     rdi, rsi
 
             mov     rcx, rdi

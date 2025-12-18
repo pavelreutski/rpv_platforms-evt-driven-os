@@ -1,9 +1,39 @@
 global _arch_memcpy, _arch_memset, _arch_memmove, _arch_memcmp
-global _arch_strcpy, _arch_strncpy, _arch_strcmp, _arch_strncmp, _arch_strchr, _arch_strlen
+global _arch_strcpy, _arch_strcat, _arch_strncpy, _arch_strcmp, _arch_strncmp, _arch_strchr, _arch_strlen
 
 [section .text]
 
 [bits 64]
+
+; rdi <- dest
+; rsi <- src
+
+; rax -> dest
+
+_arch_strcat:
+                push    rbx
+
+                cld
+                mov     rbx, rdi
+                
+                xor     rax, rax
+
+                mov     rcx, -1                
+        repnz   scasb
+
+                dec     rdi
+.strcat_loop:
+
+                lodsb
+                stosb
+
+                or      al, al
+                jnz     .strcat_loop 
+               
+                mov     rax, rbx
+
+                pop     rbx
+                ret
 
 ; rdi <- string
 ; rax -> length
