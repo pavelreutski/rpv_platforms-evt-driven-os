@@ -2,6 +2,7 @@ global _irqs_exceptions
 
 ; LAPIC
 extern _lapic_enable
+extern _lapic_timer
 extern _ioapic_redirect_irq
 
 ; ISRs
@@ -53,6 +54,7 @@ _irqs_exceptions:
         ; init LAPIC
         
         call    _lapic_enable
+        call    _lapic_timer
 
         ; IRQs to vectors mapping (shift hardware IRQs > 31 since 0 - 31 vectors are CPU exceptions)
 

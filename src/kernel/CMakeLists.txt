@@ -37,4 +37,4 @@ target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
 elf_dump(${PROJECT_NAME})
 
 kernel_iso(${PROJECT_NAME})
-gdb_qemu_iso(${PROJECT_NAME})
+qemu_simul(${PROJECT_NAME})

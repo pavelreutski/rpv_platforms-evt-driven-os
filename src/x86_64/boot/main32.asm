@@ -27,7 +27,6 @@ NO_LONG_MODE_CODE   equ     "L"
 [bits 32]
 
 _start:
-
     mov     esp, _stack_top
 
     call    check_multiboot

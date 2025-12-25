@@ -1,10 +1,10 @@
 # Function:
 #   kernel_iso(<kernel-target>)
 #
-# Only handles copying the kernel and generating GRUB ISO.
-# Does NOT create run/debug targets.
+# Only handles copying the kernel generating GRUB ISO and IDE disk images
 
 function(kernel_iso KERNEL_TARGET)
+
     if(NOT TARGET ${KERNEL_TARGET})
         message(FATAL_ERROR "Kernel target '${KERNEL_TARGET}' does not exist.")
     endif()
@@ -13,7 +13,6 @@ function(kernel_iso KERNEL_TARGET)
     set(ISO_BOOT_DIR "${ISO_DIR}/boot")
     set(ISO_OUTPUT   "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KERNEL_TARGET}.iso")
 
-    # Path to built kernel ELF
     set(KERNEL_ELF $<TARGET_FILE:${KERNEL_TARGET}>)
 
     #
@@ -44,4 +43,5 @@ function(kernel_iso KERNEL_TARGET)
         DEPENDS ${ISO_OUTPUT}
         COMMENT "ISO image created at ${ISO_OUTPUT}"
     )
+
 endfunction()

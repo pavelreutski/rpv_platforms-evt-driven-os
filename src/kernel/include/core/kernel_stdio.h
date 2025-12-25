@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -15,8 +16,6 @@ void _kernel_outString(const char* str);
 
 void _kernel_outStringFormat(const char *fmt, ...);
 void _kernel_stringFormat(char *s, char const* fmt, ...);
-
-void _kernel_outXY(uint16_t x, uint16_t y);
 
 void _kernel_getKey(console_key_t *key);
 bool _kernel_tryGetKey(console_key_t *key);

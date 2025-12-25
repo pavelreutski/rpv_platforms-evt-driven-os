@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -6,6 +7,7 @@
 #include "shell.h"
 #include "diskio.h"
 #include "events.h"
+#include "console.h"
 
 #include "kernel.h"
 #include "kernel_fio.h"
@@ -40,13 +42,11 @@
 #define CMD_SHELL_COPYRIGHT_MSG                  ("(C)RPV Co 2004-2025.\n")
 #define CMD_SHELL_WELCOME_MSG                    ("RPVCo(R) Command Shell Program\n")
 
-typedef enum {
-
+enum {
 	NO_EXEC,
 	EXEC_EXTERNAL,
 	EXEC_BUILT_IN
-
-} exec_codes_t;
+};
 
 typedef struct {
 
@@ -57,10 +57,8 @@ typedef struct {
 
 static uint8_t CmdBufferLength                          = 0;
 
-// static char *CmdArgs[MAX_COMMAND_ARGS];
-
+static char *CmdArgs[MAX_COMMAND_ARGS];
 static char CmdBuffer[MAX_COMMAND_BUFFER];
-static char CmdPrmptBuffer[MAX_COMMAND_PRMPT_BUFFER];
 
 /*static const char *ExecLookupTbl[]                    = { ".\\",
 														  "C:\\",
@@ -85,7 +83,7 @@ static void onProg_processFinished(evt_data_t* evtData);
 		int (*executable)(int argc, const char **argv));
 static void exec_f(char* input, uint8_t nArgsLen, const char *file); */
 
-// static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen);
+static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen);
 
 // Command handlers
 
@@ -100,6 +98,7 @@ static uint8_t onType_exec(char* input, uint8_t nArgsLen);
 
 //// Disk Operations
 
+static uint8_t onDisk_blckRead(char* input, uint8_t nArgsLen);
 static uint8_t onDisk_info(char* input, uint8_t nArgsLen);
 static uint8_t onDisk_mkDir(char* input, uint8_t nArgsLen);
 static uint8_t onDiskFile_rm(char* input, uint8_t nArgsLen);
@@ -122,7 +121,8 @@ static command_t Commands[MAX_COMMANDS] =
 				{ "rm", onDiskFile_rm },
 				{ "rmdir", onDiskFile_rm },
 				{ "mkdir", onDisk_mkDir },
-				{ "disks", onDisk_info }
+				{ "disks", onDisk_info },
+				{ "read_disk", onDisk_blckRead }
 		};
 
 //// Never returns
@@ -130,7 +130,6 @@ static command_t Commands[MAX_COMMANDS] =
 void _shell_start() {
 
 	memset(CmdBuffer, 0, sizeof(CmdBuffer));
-	strncpy(CmdPrmptBuffer, "> ", MAX_COMMAND_PRMPT_BUFFER);
 
 	/// Self event subscriptions
 
@@ -226,7 +225,7 @@ static void translate_userInput() {
 	}
 }
 
-/* static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen) {
+static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen) {
 
 	uint8_t ipos = 0;
 
@@ -245,14 +244,14 @@ static void translate_userInput() {
 		input[ipos] = 0;
 
 		CmdArgs[*argc] =
-				input + ipos + 1; //// Argument starts at next character position
+				input + ipos + 1; // Argument starts at next character position
 
 		(*argc)++;
 
 	} while(++ipos < nArgsLen);
 
 	return (const char**) CmdArgs;
-}*/
+}
 
 static uint8_t try_executeCommand(void) {
 
@@ -315,7 +314,23 @@ static void clear_cmdDisplayBuffer(void) {
 }
 
 static void display_cmdPromptLn(void) {
-	_kernel_outString(CmdPrmptBuffer);
+
+	char cdrive = _kernel_cdrive();
+	if (cdrive == '\0') {
+
+		_kernel_outString("> ");
+		return;
+	}
+
+	char prompt[255];
+	char *s_prmpt = prompt;
+	
+	*(s_prmpt++) = cdrive;
+	
+	*s_prmpt = '\0';
+	strcat(s_prmpt, ":\\>");
+
+	_kernel_outString(prompt);
 }
 
 static void display_badCmdMsg(void) {
@@ -373,6 +388,78 @@ static uint8_t onVideoDevice_statQuery(char* input, uint8_t nArgsLen) {
 }
 
 //// Disk Operations
+
+static uint8_t onDisk_blckRead(char* input, uint8_t nArgsLen) {
+
+	int argc = 0;
+	const char** argv = 
+		parse_cmdArgs(input, &argc, nArgsLen);
+
+	if (argc != 2) {
+
+		_kernel_outString("Invalid parameters. Disk id and block numer (zero based) is required\n");
+		return EXEC_BUILT_IN;
+	}
+	
+	uint8_t blck_data[512];
+
+	size_t did = atol(argv[0]);
+	size_t blck = atol(argv[1]);
+
+	uint8_t disk_io = read_disk(blck_data, did, blck, 1);
+
+	switch (disk_io) {
+
+		case DISK_INVALID: { _kernel_outString("drive invalid !\n"); } break;
+		case DISK_NOT_READY: { _kernel_outString("drive not ready !\n"); } break;
+ 		case DISK_IO_ERR: { _kernel_outString("drive read block failed !\n"); } break;
+	}
+
+	if (disk_io != DISK_IO_OK) {
+		return EXEC_BUILT_IN;
+	}
+
+	con_clear();
+
+	#define LINE_BYTES 16
+
+	for (size_t offset = 0; offset < sizeof(blck_data); offset += LINE_BYTES) {
+		
+		if (con_gety() == (MAX_Y - 1)) {
+
+			console_key_t key;
+
+			_kernel_outString("--More--");
+			_kernel_getKey(&key);
+
+			_kernel_outChar('\n');
+
+			if (key.scan_code == 0x76) { // esc key
+				return EXEC_BUILT_IN;
+			}
+		}
+
+		_kernel_outStringFormat("%04x: ", offset);
+
+		for (size_t i = 0; i < LINE_BYTES; i++) {			
+			_kernel_outStringFormat("%02x ", blck_data[offset + i]);
+		}
+
+		for (size_t i = 0; i < LINE_BYTES; i++) {
+
+			char c = blck_data[offset + i];
+
+			c = (c == '\t') || 
+					(c == '\n') || (c == '\a')  ? ' ' : c; 
+
+			_kernel_outChar(c);
+		}
+
+		_kernel_outChar('\n');		
+	}
+
+	return EXEC_BUILT_IN;
+}
 
 static uint8_t onDisk_info(char* input, uint8_t nArgsLen) {
 

@@ -6,7 +6,7 @@ project(rpv-evt-driven-os
 # Set/Add solution cmake modules path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/tools/cmake)
 
-include(qemu-x86_64-gdb)
+include(qemu-x86_64-simul)
 include(kernel-x86_64-iso)
 
 include(gcc-x86_64-elf-utils)

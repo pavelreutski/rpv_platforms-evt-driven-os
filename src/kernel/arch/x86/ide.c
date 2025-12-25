@@ -9,7 +9,15 @@
 #define IDE_BUS_DEVICES             (2)
 
 #define IDE_DEV_LETTERS             (4)
+#define IDE_NO_LETTER               ('\0')
+
+/* LBA48 only */
+
+#define IDE_CAP_LBA_LO              (60)
+#define IDE_CAP_LBA_HI              (61)
+
 #define IDE_DEV_ID_WORDS            (256)
+#define IDE_SECTOR_BYTES            (512)
 
 enum {
     IDE_NO_DEVICE,
@@ -36,6 +44,8 @@ typedef struct {
 
     uint8_t ata_detect;
 
+    size_t capacity;
+
     uint16_t identity_block[IDE_DEV_ID_WORDS];
 
 } ide_dev_t;
@@ -49,25 +59,36 @@ extern uint8_t __attribute__((sysv_abi)) _arch_ide_device_write(uint8_t ide_bus,
 
 void disk_io(void) {
 
-    uint8_t dev_letter = 0;
+    size_t dev_letter = 0;
     char letters[] = { 'C', 'D', 'E', 'F' };
 
     ide_dev_t *dev = ide_dev;
 
     for (size_t ide_bus = 0; ide_bus < IDE_DEV_BUSES; ide_bus++) {
-        for (size_t ide_bus_dev = 0; ide_bus_dev < IDE_BUS_DEVICES; ide_bus_dev++) {
+        for (size_t ide_bus_dev = 0; ide_bus_dev < IDE_BUS_DEVICES; ide_bus_dev++, dev++) {
 
             dev -> ide_bus = ide_bus;
             dev -> bus_dev = ide_bus_dev;
 
-            dev -> letter = letters[dev_letter];
+            dev -> capacity = 0;
+            dev -> letter = IDE_NO_LETTER;
+
+            memset((dev -> identity_block), 0, sizeof(dev->identity_block));
 
             dev -> ata_detect = 
                 _arch_ide_device_detect(
-                    ide_bus, ide_bus_dev, dev -> identity_block);            
+                    ide_bus, ide_bus_dev, dev -> identity_block);
+            
+            if (dev -> ata_detect != IDE_NO_DEVICE) {                
 
-            dev_letter++;
-            dev = &ide_dev[dev_letter];            
+                size_t cap_sectors = (dev -> identity_block[IDE_CAP_LBA_HI] << 16) | 
+                                        (dev -> identity_block[IDE_CAP_LBA_LO]);
+
+                dev -> letter = letters[dev_letter];
+                dev -> capacity = (cap_sectors * IDE_SECTOR_BYTES);
+
+                dev_letter++;
+            }           
         }
     }
 }
@@ -80,10 +101,12 @@ void get_disk(size_t did, disk_t *disk) {
 
     if ((disk == NULL) || (did >= IDE_DEV_LETTERS)) return;
 
-    disk -> did = did;
-    disk -> volume = 0;
+    ide_dev_t *dev = &ide_dev[did];
 
-    disk -> letter = ide_dev[did].letter;
+    disk -> did = did;
+
+    disk -> letter = dev -> letter;
+    disk -> volume = dev -> capacity;
 }
 
 void get_diskInfo(size_t did, char *dsk_info, size_t dsk_infoLen) {
@@ -95,19 +118,22 @@ void get_diskInfo(size_t did, char *dsk_info, size_t dsk_infoLen) {
 
     ide_dev_t *dev = &ide_dev[did];
 
-    // IDE: bus 0/1, device 0/1, (not detected)/ata/atapi
+    // IDE#did: bus 0/1, device 0/1, (not detected)/ata/atapi, capacity (when ata/atapi)
 
     _kernel_stringFormat(
-        dsk_info, "IDE: bus %d, device %d, ", dev -> ide_bus, dev -> bus_dev);
+        dsk_info, "IDE#%d: bus %d, device %d, ", did, dev -> ide_bus, dev -> bus_dev);
 
     switch (dev -> ata_detect) {
-    
-    case IDE_ATA_DEVICE: { strcat(dsk_info, "ata");  } break;
-    case IDE_ATAPI_DEVICE: { strcat(dsk_info, "atapi"); } break;
-    case IDE_NO_DEVICE:  { strcat(dsk_info, "not detected"); } break;
-    
-    default: { strcat(dsk_info, "unknown"); } break;
 
+        case IDE_ATAPI_DEVICE: { strcat(dsk_info, "atapi"); } break;
+        case IDE_NO_DEVICE:  { strcat(dsk_info, "not detected"); } break;
+
+        case IDE_ATA_DEVICE: { 
+            _kernel_stringFormat(
+                (dsk_info + strlen(dsk_info)), "ata, capacity %d", dev -> capacity); 
+        } break;
+        
+        default: { strcat(dsk_info, "unknown"); } break;
     }
 }
 

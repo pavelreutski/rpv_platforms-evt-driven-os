@@ -15,9 +15,10 @@ enum {
 
 typedef struct {
 
-    size_t did;
-    size_t volume;
     char letter;
+    
+    size_t did;
+    size_t volume;    
 
 } disk_t;
 

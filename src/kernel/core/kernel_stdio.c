@@ -16,6 +16,9 @@ static void out_console(void **ctx, char const* s);
 static void out_strbuffer(void **ctx, char const* s);
 
 static void format_int(void (*out)(void **, char const*), void **ctx, int value);
+static void format_hex(void (*out)(void **, char const*), 
+							void **ctx, unsigned value, size_t width, char pad);
+
 static void format_core(void (*out)(void **, char const*), void **ctx, char const* fmt, va_list args);
 
 void _kernel_stdio(void) {
@@ -39,10 +42,6 @@ void _kernel_outChar(const char code) {
 
 void _kernel_outString(const char* str) {
 	con_string(str);
-}
-
-void _kernel_outXY(uint16_t x, uint16_t y) {
-	con_xy(x, y);
 }
 
 void _kernel_stringFormat(char *s, char const* fmt, ...) {
@@ -146,45 +145,90 @@ static void format_int(void (*out)(void **, char const*), void **ctx, int value)
 	out(ctx, s);
 }
 
+static void format_hex(void (*out)(void **, char const*), 
+							void **ctx, unsigned value, size_t width, char pad) {
+	
+	char str_buf[sizeof(unsigned) * 2 + 1];
+	static const char hexdec[] = "0123456789ABCDEF";
+
+	char *s = str_buf + sizeof(str_buf);
+
+	*(--s) = '\0';
+	
+	size_t len = 0;
+	unsigned d = value;	
+
+	do {
+		*(--s) = hexdec[(d & 0x0F)];		
+		d >>= 4;
+		len++;
+	} while (d > 0);
+
+	while (len < width) {
+		*(--s) = pad;
+		len++;
+	}
+	
+	out(ctx, s);
+}
+
 static void format_core(void (*out)(void **, char const*), void **ctx, char const* fmt, va_list args) {
 
-	while(*fmt) {
-
-		char fmt_cs[] = {*fmt, '\0' };
+	while(*fmt) {		
 
 		if (*fmt != '%') {
 
-			out(ctx, fmt_cs);
-			fmt++;
-
+			char literal[] = { *fmt++, '\0' };
+			out(ctx, literal);
 			continue;
 		}
 
-		const char fmt_c = *(fmt + 1);
+		fmt++;
 		
-		fmt += 2;
-		*fmt_cs = fmt_c;
+		char pad = ' ';
+		if (*fmt == '0') {
+			pad = '0';
+			fmt++;
+		}
+		
+		size_t width = 0;
+		while(*fmt >= '0' && *fmt <= '9') {
+			width = width * 10 + (*fmt - '0');
+			fmt++;
+		}
 
-		switch(fmt_c) {
+		char spec = *(fmt++);
 
-		case '\0':  {
-			return;
-		} break;
+		switch(spec) {
 
-		case 's':  { 
-			char const* s = va_arg(args, char const*);			
-			out(ctx, s);
-		} break;
+			case '\0':  {
+				return;
+			} break;
 
-		case 'd': {
+			case 's':  { 
+				char const* s = va_arg(args, char const*);			
+				out(ctx, s);
+			} break;
 
-			const int value = va_arg(args, const int);
-			format_int(out, ctx, value);
-			
-		} break;
+			case 'd': {
 
-		default: { out(ctx, fmt_cs); } break;
+				const int value = va_arg(args, const int);
+				format_int(out, ctx, value);
+				
+			} break;
 
+			case 'x': {
+
+				const unsigned value = va_arg(args, const unsigned);
+				format_hex(out, ctx, value, width, pad);
+
+			} break;
+
+			default: { 
+
+				char literal[] = { spec, '\0' };
+				out(ctx, literal); 
+			} break;
 		}
 	}
 }
