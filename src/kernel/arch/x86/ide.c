@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "diskio.h"
+#include "disk.h"
 #include "kernel_stdio.h"
 
 #define IDE_DEV_BUSES               (2)

@@ -37,7 +37,7 @@ set(CMAKE_READELF      ${CROSS}-readelf)
 # ---------------------
 
 add_compile_options(
-    "$<$<COMPILE_LANGUAGE:C>:-m64;-Wall;-Wextra>")
+    "$<$<COMPILE_LANGUAGE:C>:-m64;-Wall;-Wextra;-O2;-g;-gdwarf-4;-ffreestanding;-fno-builtin;-fno-pic;-fno-pie;-fno-omit-frame-pointer;-fno-stack-protector;-fno-strict-aliasing;-mno-red-zone>")
 
 # ---------------------
 # Include directories

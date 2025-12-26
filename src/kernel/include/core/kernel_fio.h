@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+
 void _kernel_fio(void);
 
 char _kernel_cdrive(void);

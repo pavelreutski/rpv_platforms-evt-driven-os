@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "diskio.h"
+#include "disk.h"
 #include "kernel_fio.h"
 
 #define MAX_FIO_DISKS   10

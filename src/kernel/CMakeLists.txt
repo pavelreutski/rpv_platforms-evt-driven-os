@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20.0)
 
 project(rpv-x86_64-kernel LANGUAGES C)
 
+include(./arch/fatfs/fatfs.cmake)
+
 file(GLOB_RECURSE KERNEL_C_SOURCES CONFIGURE_DEPENDS ./*.c)
 
 add_executable(${PROJECT_NAME})
@@ -14,17 +16,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC ./include
                                                   ./include/services
                                                   ./include/arch/x86)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap)
+target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap fatfs)
 
-target_compile_options(${PROJECT_NAME} PRIVATE -O2 -g -gdwarf-4
-                                               -ffreestanding
-                                               -fno-builtin
-                                               -fno-pic -fno-pie
-                                               -fno-omit-frame-pointer
-                                               -fno-stack-protector
-                                               -fno-strict-aliasing
-                                               -mno-red-zone
-                                               -mcmodel=kernel)
+target_compile_options(${PROJECT_NAME} PRIVATE -mcmodel=kernel)
 
 target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                             -nostartfiles

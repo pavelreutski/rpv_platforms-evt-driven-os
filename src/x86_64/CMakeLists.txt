@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-project(rpv-x86_64-bootstrap
-        LANGUAGES ASM_NASM)
+project(rpv-x86_64-bootstrap LANGUAGES ASM_NASM)
 
 file(GLOB_RECURSE BOOTSTRAP_ASM_SOURCES CONFIGURE_DEPENDS ./*.asm)
 

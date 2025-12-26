@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "disk.h"
 #include "shell.h"
-#include "diskio.h"
 #include "events.h"
 #include "console.h"
 
