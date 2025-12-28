@@ -29,7 +29,8 @@ set(FF_SFN_BUF          12)
 # --- Filesystem limits ---
 
 set(FF_FS_RPATH         2)
-set(FF_VOLUMES          1)
+set(FF_VOLUMES          4)
+set(FF_STR_VOLUME_ID    1)
 set(FF_MIN_SS           512)
 set(FF_MAX_SS           4096)
 
@@ -44,10 +45,13 @@ set(FF_FS_TIMEOUT       1000)
 
 set(FATFS_AUTOGEN_DIR ${CMAKE_AUTOGEN_OUTPUT_DIRECTORY}/fatfs)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/arch/fatfs/ffconf.h.in
+configure_file(./arch/fatfs/ffconf.h.in
                ${FATFS_AUTOGEN_DIR}/ffconf.h)
 
-add_library(fatfs STATIC ${fatfs_SOURCE_DIR}/source/ff.c
+file(GLOB FAT_FS_GLUE_SOURCES CONFIGURE_DEPENDS ./arch/fatfs/*.c)
+
+add_library(fatfs OBJECT ${FAT_FS_GLUE_SOURCES} 
+                         ${fatfs_SOURCE_DIR}/source/ff.c
                          ${fatfs_SOURCE_DIR}/source/ffunicode.c)
 
 if(EXISTS ${fatfs_SOURCE_DIR}/source/ffconf.h)
@@ -56,5 +60,6 @@ endif()
 
 target_compile_features(fatfs PRIVATE c_std_99)
 
-target_include_directories(fatfs PUBLIC  ${FATFS_AUTOGEN_DIR}
+target_include_directories(fatfs PRIVATE ./include
+                                 PUBLIC  ${FATFS_AUTOGEN_DIR}
                                          ${fatfs_SOURCE_DIR}/source)

@@ -17,7 +17,9 @@
 #define IDE_CAP_LBA_HI              (61)
 
 #define IDE_DEV_ID_WORDS            (256)
-#define IDE_SECTOR_BYTES            (512)
+
+#define IDE_ATA_SECTOR_BYTES        (512)
+#define IDE_ATAPI_SECTOR_BYTES      (2048)
 
 enum {
     IDE_NO_DEVICE,
@@ -85,7 +87,7 @@ void disk_io(void) {
                                         (dev -> identity_block[IDE_CAP_LBA_LO]);
 
                 dev -> letter = letters[dev_letter];
-                dev -> capacity = (cap_sectors * IDE_SECTOR_BYTES);
+                dev -> capacity = (cap_sectors * IDE_ATA_SECTOR_BYTES);
 
                 dev_letter++;
             }           
@@ -107,6 +109,22 @@ void get_disk(size_t did, disk_t *disk) {
 
     disk -> letter = dev -> letter;
     disk -> volume = dev -> capacity;
+
+    disk -> block_size = 0;
+
+    switch (dev -> ata_detect) {
+
+        case IDE_ATA_DEVICE:
+            disk -> block_size = IDE_ATA_SECTOR_BYTES;
+            break;
+
+        case IDE_ATAPI_DEVICE:
+            disk -> block_size = IDE_ATAPI_SECTOR_BYTES;
+            break;
+    
+        default:
+            break;
+    }
 }
 
 void get_diskInfo(size_t did, char *dsk_info, size_t dsk_infoLen) {

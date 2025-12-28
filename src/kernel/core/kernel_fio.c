@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "fat.h"
 #include "disk.h"
 #include "kernel_fio.h"
 
@@ -31,6 +32,10 @@ void _kernel_fio(void) {
                should be replaced to a bootable drive later */
 
             if (c_dsk == NULL) {
+
+                char mnt[] = { disk.letter, ':', '\0' };
+                fat_mount(mnt); 
+                               
                 c_dsk = &fio_disks[f_disk];
             }
 

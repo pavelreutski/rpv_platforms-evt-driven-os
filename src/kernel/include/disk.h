@@ -18,7 +18,9 @@ typedef struct {
     char letter;
     
     size_t did;
-    size_t volume;    
+    size_t volume;
+    size_t num_blocks;
+    size_t block_size;    
 
 } disk_t;
 

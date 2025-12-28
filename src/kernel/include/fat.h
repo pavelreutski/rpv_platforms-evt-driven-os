@@ -2,5 +2,8 @@
 
 #include <stdint.h>
 
-void fat_mount(void);
-void fat_chdir(void);
+void fat_getcwd(char *cwd);
+void fat_chdir(const char* cwd);
+
+void fat_mount(char const* path);
+void fat_unmount(char const* path);
