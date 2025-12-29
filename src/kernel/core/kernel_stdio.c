@@ -15,9 +15,10 @@ static void onKernel_keyPressed(evt_data_t *evtData);
 static void out_console(void **ctx, char const* s);
 static void out_strbuffer(void **ctx, char const* s);
 
-static void format_int(void (*out)(void **, char const*), void **ctx, int value);
-static void format_hex(void (*out)(void **, char const*), 
-							void **ctx, unsigned value, size_t width, char pad);
+static void format_width(char **s, size_t len, size_t width, char pad);
+
+static void format_int(void (*out)(void **, char const*), void **ctx, int value, size_t width, char pad);
+static void format_hex(void (*out)(void **, char const*), void **ctx, unsigned value, size_t width, char pad);
 
 static void format_core(void (*out)(void **, char const*), void **ctx, char const* fmt, va_list args);
 
@@ -123,25 +124,39 @@ static void out_strbuffer(void **ctx, char const* s) {
 	*((char **) ctx) = buffer;
 }
 
-static void format_int(void (*out)(void **, char const*), void **ctx, int value) {
+static void format_width(char **s, size_t len, size_t width, char pad) {
 
-	char str_buf[12];
+	while (len < width) {
+		*(--(*s)) = pad;
+		len++;
+	}
+}
+
+static void format_int(void (*out)(void **, char const*), 
+							void **ctx, int value, size_t width, char pad) {
+
+	char str_buf[256];
 	char *s = str_buf + sizeof(str_buf);
 
 	*(--s) = '\0';
 	
-	unsigned d = 
-		(value < 0) ? (~((unsigned) value) + 1) : (unsigned) value;
+	size_t len = 0;
+	unsigned d = (value < 0) ? (~((unsigned) value) + 1) : (unsigned) value;
 
 	do {
-		*(--s) = '0' + (d % 10);
+		*(--s) = '0' + (d % 10);		
 		d /= 10;
+		len++;
 	} while(d > 0);
 
 	if (value < 0) {
+
+		len++;
 		*(--s) = '-';
 	}
 
+	format_width(&s, len, width, pad);
+	
 	out(ctx, s);
 }
 
@@ -164,10 +179,7 @@ static void format_hex(void (*out)(void **, char const*),
 		len++;
 	} while (d > 0);
 
-	while (len < width) {
-		*(--s) = pad;
-		len++;
-	}
+	format_width(&s, len, width, pad);
 	
 	out(ctx, s);
 }
@@ -193,7 +205,12 @@ static void format_core(void (*out)(void **, char const*), void **ctx, char cons
 		
 		size_t width = 0;
 		while(*fmt >= '0' && *fmt <= '9') {
-			width = width * 10 + (*fmt - '0');
+
+			uint8_t digit = (*fmt - '0');
+
+			width *= 10;
+			width += digit;
+			
 			fmt++;
 		}
 
@@ -213,7 +230,7 @@ static void format_core(void (*out)(void **, char const*), void **ctx, char cons
 			case 'd': {
 
 				const int value = va_arg(args, const int);
-				format_int(out, ctx, value);
+				format_int(out, ctx, value, width, pad);
 				
 			} break;
 

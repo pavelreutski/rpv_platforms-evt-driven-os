@@ -4,12 +4,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "fat.h"
 #include "disk.h"
 #include "shell.h"
 #include "events.h"
 #include "console.h"
 
 #include "kernel.h"
+#include "kernel_fsh.h"
 #include "kernel_fio.h"
 #include "kernel_stdio.h"
 #include "kernel_exec.h"
@@ -70,7 +72,7 @@ static char CmdBuffer[MAX_COMMAND_BUFFER];
 static void clear_cmdDisplayBuffer(void);
 
 static void display_badCmdMsg(void);
-static void display_cmdPromptLn(void);
+static void display_cmdPrompt(void);
 
 static void fetch_wndCmd(uint8_t direction);
 
@@ -135,8 +137,6 @@ void _shell_start() {
 
 	_kernel_subscribe_kernel_evt(
 			0xff, onProg_processFinished);
-
-	_kernel_fio();
 	
 	_kernel_outLn();
 	_kernel_outTab();
@@ -151,7 +151,8 @@ void _shell_start() {
 	_kernel_outLn();
 	_kernel_outLn();
 
-	display_cmdPromptLn();
+	_kernel_fio();
+	display_cmdPrompt();
 
 	while(true)
 		translate_userInput();
@@ -162,7 +163,7 @@ static void onProg_processFinished(evt_data_t* evtData) {
 	(void) evtData;
 
 	_kernel_outString(PROG_PROCESS_DONE_MSG);
-	display_cmdPromptLn();
+	display_cmdPrompt();
 }
 
 static void translate_userInput() {
@@ -207,7 +208,7 @@ static void translate_userInput() {
 							CmdBufferLength;
 
 					if (execType ^ EXEC_EXTERNAL) // if anything apart from the external command execution -> display the command line prompt
-						display_cmdPromptLn();
+						display_cmdPrompt();
 
 				} break;
 				default: {
@@ -313,22 +314,22 @@ static void clear_cmdDisplayBuffer(void) {
 		_kernel_outChar(0x7f); // ASCII DEL
 }
 
-static void display_cmdPromptLn(void) {
+static void display_cmdPrompt(void) {
 
+	char prompt[255];
 	char cdrive = _kernel_cdrive();
-	if (cdrive == '\0') {
+
+	if (cdrive != '\0') {
+		fat_getcwd(prompt);
+	}	
+
+	if ((cdrive == '\0') || (*prompt == '\0')) {
 
 		_kernel_outString("> ");
 		return;
 	}
 
-	char prompt[255];
-	char *s_prmpt = prompt;
-	
-	*(s_prmpt++) = cdrive;
-	
-	*s_prmpt = '\0';
-	strcat(s_prmpt, ":\\>");
+	strcat(prompt, ">");
 
 	_kernel_outString(prompt);
 }
@@ -514,39 +515,29 @@ static uint8_t onSysDisk_mount(char* input, uint8_t nArgsLen) {
 
 static uint8_t onDisk_mkDir(char* input, uint8_t nArgsLen) {
 
-	(void) input;
 	(void) nArgsLen;
 
-	// DiskOpMkDir(input);
-
-	_kernel_outString(NRDY_COMMAND_MSG);
+	_kernel_mkdir(input);
 	return EXEC_BUILT_IN;
 }
 
 static uint8_t onDisk_chDir(char* input, uint8_t nArgsLen) {
-
-	(void) input;
+	
 	(void) nArgsLen;
 
-	// DiskOpChDir(input);
-
-	_kernel_outString(NRDY_COMMAND_MSG);
+	_kernel_cd(input);
 	return EXEC_BUILT_IN;
 }
 
 static uint8_t onDiskDir_display(char* input, uint8_t nArgsLen) {
 
-	(void) input;
-	(void) nArgsLen;
-
-	/*int argc = 0;
+	int argc = 0;
 
 	const char **argv =
-				parseCmdArgs(input, &argc, nArgsLen);
+				parse_cmdArgs(input, &argc, nArgsLen);
 
-	DiskOpDirDisplay(argc, argv);*/
+	_kernel_ls(argc, argv);
 
-	_kernel_outString(NRDY_COMMAND_MSG);
 	return EXEC_BUILT_IN;
 }
 

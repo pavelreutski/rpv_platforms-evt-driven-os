@@ -15,6 +15,7 @@ typedef enum {
 
 	EVT_ONESHOT_TICK,
 	EVT_PERIODIC_TICK,
+	EVT_KERNEL_DTC,
 	EVT_KERNEL_EVENTS
 
 } kernel_events_t;

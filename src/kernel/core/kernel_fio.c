@@ -34,9 +34,10 @@ void _kernel_fio(void) {
             if (c_dsk == NULL) {
 
                 char mnt[] = { disk.letter, ':', '\0' };
-                fat_mount(mnt); 
-                               
-                c_dsk = &fio_disks[f_disk];
+
+                if (fat_mount(mnt)) {
+                    c_dsk = &fio_disks[f_disk];
+                }
             }
 
             f_disk++;
@@ -46,6 +47,44 @@ void _kernel_fio(void) {
 
 char _kernel_cdrive(void) {
     return c_dsk != NULL ? c_dsk -> letter : '\0';
+}
+
+bool _kernel_unmount(void) {
+
+    if (c_dsk == NULL) {
+        return false;
+    }
+
+    char mnt[] = { c_dsk -> letter, ':', '\0' };
+
+    if (fat_unmount(mnt)) {
+
+        c_dsk = NULL;
+        return true;
+    }
+
+    return false;
+}
+
+bool _kernel_mount(char letter) {
+
+    disk_t *fio_dsk = (disk_t *) fio_disks;
+
+    for (size_t i = 0; 
+            (fio_dsk -> letter) != '\0' && (i < MAX_FIO_DISKS); fio_dsk++, i++) {
+
+        if (fio_dsk -> letter == letter) {
+
+            char mnt[] = { letter, ':', '\0' };
+            if (fat_mount(mnt)) {
+
+                c_dsk = fio_dsk;
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 size_t _kernel_drives(char *drive_lt, size_t nlt) {
