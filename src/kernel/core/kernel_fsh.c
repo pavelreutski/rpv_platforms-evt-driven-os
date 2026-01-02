@@ -22,6 +22,9 @@
 #define INVALID_KEY_MSG                          ("Invalid key specified\n")
 #define INVALID_PATH_OR_FILE_MSG                 ("Invalid path or file name\n")
 
+#define FILE_RM_CONFIRM_MSG                      ("File will be removed. Are you sure Y(y)/N(n) ?\n")
+#define DIR_RM_CONFIRM_MSG                       ("Directory will be removed. Are you sure Y(y)/N(n) ?\n")
+
 enum {
 	
 	LS_INVALID_KEY,
@@ -29,6 +32,8 @@ enum {
 	LS_FILE_ONLY_KEY,
 	LS_MIXED_KEY
 };
+
+static void fs_remount(void);
 
 static void display_dir(filinfo_t const* fi, char *buff);
 static void display_file(filinfo_t const* fi, char *buff);
@@ -40,6 +45,80 @@ void _kernel_cd(char const* path) {
     if (!fat_chdir(path)) {
 		_kernel_outString(NO_SUCH_DIR_MSG);
 	}
+}
+
+void _kernel_rmfile(char const* path) {
+
+	filinfo_t fno;
+	if (!fat_stat(path, &fno)) {
+
+		_kernel_outString(INVALID_PATH_OR_FILE_MSG);
+		return;
+	}
+
+	bool is_dir = fno.attrib.flags.directory;
+
+	if (is_dir) {
+		_kernel_outString(DIR_RM_CONFIRM_MSG);
+	} else {
+		_kernel_outString(FILE_RM_CONFIRM_MSG);
+	}
+
+	do {
+
+		console_key_t key;
+		_kernel_getKey(&key);
+
+		switch (key.code) {
+
+			case 'y':
+			case 'Y': {
+
+				if (fat_unlink(path)) {
+
+					if (is_dir) {
+						_kernel_outString(DIR_DELETED_MSG);
+					} else {
+						_kernel_outString(FILE_DELETED_MSG);
+					}
+					
+					return;
+				}
+
+				switch (fat_getcode()) {
+
+					case FAT_ACCESS_DENIED: {
+						
+						if (is_dir) {
+							_kernel_outString("directory access denied or not empty\n");
+						} else {
+							_kernel_outString("file access denied\n");
+						}
+
+						return;
+
+					} break;
+				
+					default: {
+						fs_remount();
+						_kernel_outString("general error !\n"); 
+					} break;
+				}				
+
+				_kernel_outString("file or directory remove failed !\n");
+
+				return;
+
+			} break;
+
+			case 'n':
+			case 'N': return;
+		
+			default:
+				break;
+		}
+
+	} while(true);
 }
 
 void _kernel_mkdir(char const* path) {
@@ -56,12 +135,8 @@ void _kernel_mkdir(char const* path) {
 		return;
 	}
 
-	char cdrive = _kernel_cdrive();
-
-	_kernel_unmount();
-	_kernel_mount(cdrive);
-
-	_kernel_outString("A new directory creation failed !\n");	
+	fs_remount();
+	_kernel_outString("a new directory creation failed !\n");	
 }
 
 void _kernel_ls(const int argc, const char **argv) {    
@@ -82,6 +157,14 @@ void _kernel_ls(const int argc, const char **argv) {
     _kernel_outChar('\n');
 	fat_ls("", &dp_key, ls_file);
 	_kernel_outChar('\n');
+}
+
+static void fs_remount(void) {
+
+	char cdrive = _kernel_cdrive();
+
+	_kernel_unmount();
+	_kernel_mount(cdrive);
 }
 
 static void display_dateTime(filinfo_t const* fi, char *buff) {
@@ -115,7 +198,7 @@ static void display_file(filinfo_t const* fi, char *buff) {
 
 static void ls_file(void const* ls_ctx, filinfo_t const* fi) {
 
-	char dp_buff[255] = "";
+	char dp_buff[256] = "";
 	uint8_t dp_key = *((uint8_t *) ls_ctx);
 
 	switch(dp_key) {

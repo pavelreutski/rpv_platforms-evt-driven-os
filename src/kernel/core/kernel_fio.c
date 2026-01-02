@@ -3,7 +3,9 @@
 
 #include "fat.h"
 #include "disk.h"
+
 #include "kernel_fio.h"
+#include "kernel_journal.h"
 
 #define MAX_FIO_DISKS   10
 
@@ -59,6 +61,8 @@ bool _kernel_unmount(void) {
 
     if (fat_unmount(mnt)) {
 
+        _kernel_jentry("[kernel] info: path '%s' unmount success", mnt);
+
         c_dsk = NULL;
         return true;
     }
@@ -76,7 +80,9 @@ bool _kernel_mount(char letter) {
         if (fio_dsk -> letter == letter) {
 
             char mnt[] = { letter, ':', '\0' };
-            if (fat_mount(mnt)) {
+            if (fat_mount(mnt)) {                
+
+                _kernel_jentry("[kernel] info: path '%s' mount success", mnt);
 
                 c_dsk = fio_dsk;
                 return true;

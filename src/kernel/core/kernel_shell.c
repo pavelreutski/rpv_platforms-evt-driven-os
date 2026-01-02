@@ -13,8 +13,12 @@
 #include "kernel.h"
 #include "kernel_fsh.h"
 #include "kernel_fio.h"
-#include "kernel_stdio.h"
 #include "kernel_exec.h"
+#include "kernel_stdio.h"
+#include "kernel_journal.h"
+
+#include "utils/copy.h"
+#include "utils/type.h"
 
 #include "private/shell_cmd.h"
 
@@ -81,9 +85,9 @@ static uint8_t try_executeCommand(void);
 
 static void onProg_processFinished(evt_data_t* evtData);
 
-/* static void exec_ja(char* input, uint8_t nArgsLen,
-		int (*executable)(int argc, const char **argv));
-static void exec_f(char* input, uint8_t nArgsLen, const char *file); */
+static void exec_ja(char* input, uint8_t nArgsLen,
+		int (*executable)(const int argc, const char **argv));
+/* static void exec_f(char* input, uint8_t nArgsLen, const char *file); */
 
 static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen);
 
@@ -91,6 +95,7 @@ static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen);
 
 static uint8_t onVer_display(char* input, uint8_t nArgsLen);
 static uint8_t onDisplay_cfg(char* input, uint8_t nArgsLen);
+static uint8_t onSysJournal_display(char* input, uint8_t nArgsLen);
 static uint8_t onVideoDevice_statQuery(char* input, uint8_t nArgsLen);
 
 //// External Embedded Programs
@@ -124,7 +129,8 @@ static command_t Commands[MAX_COMMANDS] =
 				{ "rmdir", onDiskFile_rm },
 				{ "mkdir", onDisk_mkDir },
 				{ "disks", onDisk_info },
-				{ "read_disk", onDisk_blckRead }
+				{ "read_disk", onDisk_blckRead },
+				{ "sysj", onSysJournal_display }
 		};
 
 //// Never returns
@@ -316,22 +322,19 @@ static void clear_cmdDisplayBuffer(void) {
 
 static void display_cmdPrompt(void) {
 
-	char prompt[255];
+	char s_prompt[256] = { "> " };
 	char cdrive = _kernel_cdrive();
 
 	if (cdrive != '\0') {
-		fat_getcwd(prompt);
-	}	
 
-	if ((cdrive == '\0') || (*prompt == '\0')) {
+		fat_getcwd(s_prompt);
 
-		_kernel_outString("> ");
-		return;
+		if (*s_prompt == cdrive) {
+			strcat(s_prompt, ">");
+		}
 	}
 
-	strcat(prompt, ">");
-
-	_kernel_outString(prompt);
+	_kernel_outString(s_prompt);
 }
 
 static void display_badCmdMsg(void) {
@@ -385,6 +388,39 @@ static uint8_t onVideoDevice_statQuery(char* input, uint8_t nArgsLen) {
 
 	// VideoOpDeviceStateDisplay();
 	_kernel_outString(NRDY_COMMAND_MSG);
+	return EXEC_BUILT_IN;
+}
+
+static uint8_t onSysJournal_display(char* input, uint8_t nArgsLen) {
+
+	(void) input;
+	(void) nArgsLen;
+
+	char entry[256];
+	size_t j_entries = 0;
+
+	con_clear();
+
+	while (_kernel_jnxtentry(entry, sizeof(entry))) {
+		
+		if (con_gety() == MAX_Y - 1) {
+
+			console_key_t key;
+
+			_kernel_outString("--More--");
+			_kernel_getKey(&key);
+
+			_kernel_outChar('\n');
+		}
+
+		j_entries++;
+		_kernel_outStringFormat("%s\n", entry);
+	}
+
+	if (j_entries == 0) {
+		_kernel_outString("system journal has no new entries\n");
+	}
+
 	return EXEC_BUILT_IN;
 }
 
@@ -482,12 +518,9 @@ static uint8_t onDisk_info(char* input, uint8_t nArgsLen) {
 
 static uint8_t onDiskFile_rm(char* input, uint8_t nArgsLen) {
 
-	(void) input;
 	(void) nArgsLen;
 
-	// DiskOpRmFile(input);
-
-	_kernel_outString(NRDY_COMMAND_MSG);
+	_kernel_rmfile(input);
 	return EXEC_BUILT_IN;
 }
 
@@ -545,23 +578,13 @@ static uint8_t onDiskDir_display(char* input, uint8_t nArgsLen) {
 
 static uint8_t onCopy_exec(char* input, uint8_t nArgsLen) {
 
-	(void) input;
-	(void) nArgsLen;
-
-	// exec_ja(input, nArgsLen, copy_main);
-
-	_kernel_outString(NRDY_COMMAND_MSG);
+	exec_ja(input, nArgsLen, cp_main);
 	return EXEC_EXTERNAL;
 }
 
 static uint8_t onType_exec(char* input, uint8_t nArgsLen) {
 
-	(void) input;
-	(void) nArgsLen;
-
-	// exec_ja(input, nArgsLen, type_main);
-
-	_kernel_outString(NRDY_COMMAND_MSG);
+	exec_ja(input, nArgsLen, type_main);
 	return EXEC_EXTERNAL;
 }
 
@@ -579,14 +602,14 @@ static uint8_t onType_exec(char* input, uint8_t nArgsLen) {
 	}
 
 	exec_ja(input, nArgsLen, laddr);
-}
+}*/
 
 static void exec_ja(char* input, uint8_t nArgsLen,
 		int (*executable)(int argc, const char **argv)) {
 
 	int argc;
 	const char** argv =
-			parseCmdArgs(input, &argc, nArgsLen);
+			parse_cmdArgs(input, &argc, nArgsLen);
 
 	_kernel_exec_f(executable, argc, argv);
-}*/ 
+}

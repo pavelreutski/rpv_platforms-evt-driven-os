@@ -43,10 +43,12 @@ if(USE_FATFS)
 endif()
 
 file(GLOB_RECURSE KERNEL_CORE_SOURCES CONFIGURE_DEPENDS ./core/*.c)
+file(GLOB_RECURSE KERNEL_UTILS_SOURCES CONFIGURE_DEPENDS ./utils/*.c)
 
 target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
 target_sources(${PROJECT_NAME} PRIVATE ./entry.c
-                                       ${KERNEL_CORE_SOURCES})
+                                       ${KERNEL_CORE_SOURCES}
+                                       ${KERNEL_UTILS_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ./include
                                                   ./include/core

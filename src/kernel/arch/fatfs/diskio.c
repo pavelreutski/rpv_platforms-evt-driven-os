@@ -60,6 +60,14 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff) {
             size_t block_size = disk.block_size;
             memcpy(buff, (void *) &block_size, sizeof(WORD)); 
         } break;
+
+        case CTRL_SYNC: {
+
+            if (flush_disk(disk.did) != DISK_IO_OK) {
+                return RES_ERROR;
+            }
+
+        } break;
         
         default:
             return RES_PARERR;

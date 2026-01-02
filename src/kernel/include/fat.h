@@ -1,9 +1,30 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 #define MAX_FILE_NAME           (256)
+
+typedef enum {
+
+    FILE_READ              = 0x01,
+    FILE_WRITE             = 0x02,
+    FILE_CREATE            = 0x08,
+    FILE_CREATE_NEW        = 0x04,    
+    FILE_APPEND            = 0x30
+
+} file_access_t;
+
+typedef enum {
+
+    FAT_OK,
+    FAT_IO_ERROR,
+    FAT_NOT_FOUND,
+    FAT_ACCESS_DENIED,
+    FAT_ERR_NOTSET
+
+} fat_error_code_t;
 
 typedef struct {
 
@@ -46,8 +67,20 @@ bool fat_exists(char const* path);
 
 bool fat_chdir(char const* cwd);
 bool fat_mkdir(char const* path);
+bool fat_unlink(char const* path);
 
 bool fat_mount(char const* path);
 bool fat_unmount(char const* path);
 
-void fat_ls(char const* path, void const* ls_ctx, void (*nxt_file)(void const* ls_ctx, filinfo_t const* fi));
+bool fat_stat(char const* path, filinfo_t *fno);
+
+fat_error_code_t fat_getcode(void);
+
+void fat_fclose(int fd);
+int fat_fopen(char const* path, file_access_t mode);
+
+size_t fat_fread(int fd, void *buffer, size_t nread);
+size_t fat_fwrite(int fd, void const* buffer, size_t nwrite);
+
+void fat_ls(char const* path, void const* ls_ctx, 
+    void (*nxt_file)(void const* ls_ctx, filinfo_t const* fi));

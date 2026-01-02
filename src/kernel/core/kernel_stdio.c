@@ -55,6 +55,10 @@ void _kernel_stringFormat(char *s, char const* fmt, ...) {
 	va_end(args);
 }
 
+void _kernel_vstringFormat(char *s, char const* fmt, va_list args) {
+	format_core(out_strbuffer, (void **) &s, fmt, args);
+}
+
 void _kernel_outStringFormat(const char *fmt, ...) {
 
 	va_list args;

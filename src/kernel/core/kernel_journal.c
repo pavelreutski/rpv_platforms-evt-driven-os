@@ -1,6 +1,8 @@
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 
+#include "kernel_stdio.h"
 #include "kernel_journal.h"
 
 #define MAX_JOURNAL_SIZE            (2048)
@@ -21,7 +23,15 @@ bool _kernel_jnxtentry(char *entry, const size_t max_len) {
     return (entry_len > 0);
 }
 
-void _kernel_jentry(char const* entry) {
+void _kernel_jentry(char const* fmt, ...) {
+
+    char entry[256];
+
+    va_list args;
+    va_start(args, fmt);
+    
+    _kernel_vstringFormat(entry, fmt, args);
+    va_end(args);
 
     size_t entry_len = strlen(entry) + 1;
 
@@ -57,14 +67,19 @@ void _kernel_jentry(char const* entry) {
 
 static void drop_oldest_entries(size_t entry_len) {
 
-    while (j_len < entry_len) {
-        
-        size_t old_len = strlen(&journal[j_rp]) + 1;
+    while (j_len < entry_len) {        
 
-        j_rp += old_len;
-        if (j_rp >= MAX_JOURNAL_SIZE) {
-            j_rp -= MAX_JOURNAL_SIZE;
-        }
+        char c;
+        size_t old_len = 0;
+
+        do {
+
+            c = journal[j_rp];
+
+            old_len++;
+            j_rp = (j_rp + 1) % MAX_JOURNAL_SIZE;
+
+        } while(c != '\0');
 
         j_len += old_len;
     }
@@ -72,10 +87,10 @@ static void drop_oldest_entries(size_t entry_len) {
 
 static size_t j_read(char *entry, const size_t max_len) {
 
-    size_t copied = 0;
+    size_t r_len = 0;
 
     if (j_len == MAX_JOURNAL_SIZE) {
-        return copied;
+        return r_len;
     }
 
     char c;
@@ -83,16 +98,16 @@ static size_t j_read(char *entry, const size_t max_len) {
     do {
 
         c = journal[j_rp];
-        entry[copied++] = c;
+        entry[r_len++] = c;
 
         j_len++;        
         j_rp = ((j_rp + 1) % MAX_JOURNAL_SIZE);
 
-    } while (c != '\0' && copied < max_len);
+    } while (c != '\0' && r_len < max_len);
 
-    if (copied == max_len) {
-        entry[copied - 1] = '\0'; // terminate the string in case of max_len is reached
+    if (r_len == max_len) {
+        entry[r_len - 1] = '\0'; // terminate the string in case of max_len is reached
     }
     
-    return copied;
+    return r_len;
 }
