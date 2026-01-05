@@ -5,7 +5,7 @@
 
 #include "utils/copy.h"
 
-int cp_main(const int argc, const char **argv) {
+int cp_m(const int argc, const char **argv) {
 
     if (argc == 0) {
         _kernel_outString("no paramters given\n");

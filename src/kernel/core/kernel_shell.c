@@ -8,6 +8,7 @@
 #include "disk.h"
 #include "shell.h"
 #include "events.h"
+#include "monitor.h"
 #include "console.h"
 
 #include "kernel.h"
@@ -93,6 +94,7 @@ static const char** parse_cmdArgs(char* input, int *argc, uint8_t nArgsLen);
 
 // Command handlers
 
+static uint8_t onCls_display(char *input, uint8_t nArgsLen);
 static uint8_t onVer_display(char* input, uint8_t nArgsLen);
 static uint8_t onDisplay_cfg(char* input, uint8_t nArgsLen);
 static uint8_t onSysJournal_display(char* input, uint8_t nArgsLen);
@@ -116,6 +118,7 @@ static uint8_t onDiskDir_display(char* input, uint8_t nArgsLen);
 
 static command_t Commands[MAX_COMMANDS] =
 		{
+				{ "cls", onCls_display },
 				{ "ver", onVer_display },
 				{ "type", onType_exec },
 				{ "copy", onCopy_exec },
@@ -354,6 +357,15 @@ static void fetch_wndCmd(uint8_t direction) {
 
 //// Command handlers
 
+static uint8_t onCls_display(char* input, uint8_t nArgsLen) {
+
+	(void) input;
+	(void) nArgsLen;
+
+	con_clear();
+	return EXEC_BUILT_IN;
+}
+
 static uint8_t onVer_display(char* input, uint8_t nArgsLen) {
 
 	(void) input;
@@ -402,19 +414,9 @@ static uint8_t onSysJournal_display(char* input, uint8_t nArgsLen) {
 	con_clear();
 
 	while (_kernel_jnxtentry(entry, sizeof(entry))) {
-		
-		if (con_gety() == MAX_Y - 1) {
-
-			console_key_t key;
-
-			_kernel_outString("--More--");
-			_kernel_getKey(&key);
-
-			_kernel_outChar('\n');
-		}
 
 		j_entries++;
-		_kernel_outStringFormat("%s\n", entry);
+		text_monitor(entry);		
 	}
 
 	if (j_entries == 0) {
@@ -456,44 +458,7 @@ static uint8_t onDisk_blckRead(char* input, uint8_t nArgsLen) {
 		return EXEC_BUILT_IN;
 	}
 
-	con_clear();
-
-	#define LINE_BYTES 16
-
-	for (size_t offset = 0; offset < sizeof(blck_data); offset += LINE_BYTES) {
-		
-		if (con_gety() == (MAX_Y - 1)) {
-
-			console_key_t key;
-
-			_kernel_outString("--More--");
-			_kernel_getKey(&key);
-
-			_kernel_outChar('\n');
-
-			if (key.scan_code == 0x76) { // esc key
-				return EXEC_BUILT_IN;
-			}
-		}
-
-		_kernel_outStringFormat("%04x: ", offset);
-
-		for (size_t i = 0; i < LINE_BYTES; i++) {			
-			_kernel_outStringFormat("%02x ", blck_data[offset + i]);
-		}
-
-		for (size_t i = 0; i < LINE_BYTES; i++) {
-
-			char c = blck_data[offset + i];
-
-			c = (c == '\t') || 
-					(c == '\n') || (c == '\a')  ? ' ' : c; 
-
-			_kernel_outChar(c);
-		}
-
-		_kernel_outChar('\n');		
-	}
+	hex_monitor(blck_data, sizeof(blck_data));
 
 	return EXEC_BUILT_IN;
 }
@@ -578,13 +543,13 @@ static uint8_t onDiskDir_display(char* input, uint8_t nArgsLen) {
 
 static uint8_t onCopy_exec(char* input, uint8_t nArgsLen) {
 
-	exec_ja(input, nArgsLen, cp_main);
+	exec_ja(input, nArgsLen, cp_m);
 	return EXEC_EXTERNAL;
 }
 
 static uint8_t onType_exec(char* input, uint8_t nArgsLen) {
 
-	exec_ja(input, nArgsLen, type_main);
+	exec_ja(input, nArgsLen, type_m);
 	return EXEC_EXTERNAL;
 }
 

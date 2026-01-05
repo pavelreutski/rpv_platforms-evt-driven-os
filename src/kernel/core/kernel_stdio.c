@@ -19,6 +19,7 @@ static void format_width(char **s, size_t len, size_t width, char pad);
 
 static void format_int(void (*out)(void **, char const*), void **ctx, int value, size_t width, char pad);
 static void format_hex(void (*out)(void **, char const*), void **ctx, unsigned value, size_t width, char pad);
+static void format_char(void (*out)(void **, char const*), void **ctx, const int value, size_t width, char pad);
 
 static void format_core(void (*out)(void **, char const*), void **ctx, char const* fmt, va_list args);
 
@@ -188,6 +189,20 @@ static void format_hex(void (*out)(void **, char const*),
 	out(ctx, s);
 }
 
+static void format_char(void (*out)(void **, char const*), 
+							void **ctx, const int value, size_t width, char pad) {
+
+	size_t len = 1;
+	char s[] = { pad, '\0' };
+
+	while ((len++) < width) {
+		out(ctx, s);
+	}
+	
+	*s = (char) value;
+	out(ctx, s);
+}
+
 static void format_core(void (*out)(void **, char const*), void **ctx, char const* fmt, va_list args) {
 
 	while(*fmt) {		
@@ -235,14 +250,18 @@ static void format_core(void (*out)(void **, char const*), void **ctx, char cons
 
 				const int value = va_arg(args, const int);
 				format_int(out, ctx, value, width, pad);
-				
 			} break;
 
 			case 'x': {
 
 				const unsigned value = va_arg(args, const unsigned);
 				format_hex(out, ctx, value, width, pad);
+			} break;
 
+			case 'c': {
+
+				const int value = va_arg(args, const int);
+				format_char(out, ctx, value, width, pad);
 			} break;
 
 			default: { 

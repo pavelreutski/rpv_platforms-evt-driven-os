@@ -1,3 +1,3 @@
 #pragma once
 
-int type_main(const int argc, const char **argv);
+int type_m(const int argc, const char **argv);

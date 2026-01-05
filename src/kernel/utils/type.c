@@ -1,4 +1,7 @@
+#include <string.h>
+
 #include "fat.h"
+#include "monitor.h"
 #include "kernel_stdio.h"
 
 #include "utils/type.h"
@@ -8,7 +11,12 @@
 #define NO_SUCH_FILE_MSG                               ("No such file\n")
 #define TOO_FEW_PARAMS_MSG                             ("File to open is not specified\n")
 
-int type_main(const int argc, const char **argv) {
+enum {
+    HEX_VIEW,
+    TEXT_VIEW
+};
+
+int type_m(const int argc, const char **argv) {
 
     if (argc == 0) {
 
@@ -16,7 +24,10 @@ int type_main(const int argc, const char **argv) {
         return -1;
     }
 
-    char *path = (char *) argv[0];
+    char *path = (char *)((argc > 1) ? argv[1] : argv[0]);
+
+    uint8_t view_kind = 
+        (argc > 1 && !strcmp(argv[0], "hex")) ? HEX_VIEW : TEXT_VIEW;
 
     if (!fat_exists(path)) {
 
@@ -31,8 +42,18 @@ int type_main(const int argc, const char **argv) {
 
     while ((b_read = fat_fread(fd, buffer, sizeof(buffer) - 1)) > 0) {
 
-        buffer[b_read] = '\0';
-        _kernel_outString(buffer);
+        switch(view_kind) {
+
+            case HEX_VIEW: {
+                hex_monitor(buffer, b_read);
+            } break;
+
+            case TEXT_VIEW: {
+
+                buffer[b_read] = '\0';
+                text_monitor(buffer);
+            }
+        }
     }
         
     fat_fclose(fd);
