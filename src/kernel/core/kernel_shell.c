@@ -18,7 +18,7 @@
 #include "kernel_stdio.h"
 #include "kernel_journal.h"
 
-#include "utils/copy.h"
+#include "utils/cp.h"
 #include "utils/type.h"
 
 #include "private/shell_cmd.h"
@@ -121,6 +121,7 @@ static command_t Commands[MAX_COMMANDS] =
 				{ "cls", onCls_display },
 				{ "ver", onVer_display },
 				{ "type", onType_exec },
+				{ "cp", onCopy_exec },
 				{ "copy", onCopy_exec },
 				{ "display", onDisplay_cfg },
 				{ "video", onVideoDevice_statQuery },

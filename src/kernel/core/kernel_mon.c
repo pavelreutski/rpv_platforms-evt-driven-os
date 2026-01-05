@@ -15,15 +15,18 @@ size_t text_monitor(char const* s) {
 	for (text = (char *) s, c = *text, t_len = 0; 
 			c != '\0'; text++, t_len++, c = *text) {
 
-		if (con_gety() == (MAX_Y - 1)) {
+		_kernel_outChar(c);
+
+		if ((*(text + 1) != '\0') && 
+				(con_getx() == 0) && (con_gety() == (MAX_Y - 1))) {
 
 			console_key_t key;
 
 			_kernel_outString("--More--");
 			_kernel_getKey(&key);
-		}
 
-		_kernel_outChar(c);
+			_kernel_outChar('\n');
+		}
 	}
 
 	return t_len;

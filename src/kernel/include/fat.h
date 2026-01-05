@@ -8,11 +8,11 @@
 
 typedef enum {
 
-    FILE_READ              = 0x01,
-    FILE_WRITE             = 0x02,
-    FILE_CREATE            = 0x08,
-    FILE_CREATE_NEW        = 0x04,    
-    FILE_APPEND            = 0x30
+    FILE_READ              = 0x01, /* permission for write */
+    FILE_WRITE             = 0x02, /* permission for read */
+    FILE_CREATE            = 0x08, /* creats a new file: overwrites old file if exists */
+    FILE_CREATE_NEW        = 0x04, /* creates a new file: does not overwrite old file if exists instead an open error is given */
+    FILE_APPEND            = 0x30  /* opens a file: sets an I/O cursor at the end of a file */
 
 } file_access_t;
 
