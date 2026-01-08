@@ -104,7 +104,7 @@ void _kernel_getKey(console_key_t *key) {
 	memcpy(key, &key_Buffer, sizeof(console_key_t));
 }
 
-static void onKernel_keyPressed(evt_data_t *evtData) {
+static __attribute__((noinline)) void onKernel_keyPressed(evt_data_t *evtData) {
 	
     memcpy(&key_Buffer, (console_key_t *) evtData, sizeof(console_key_t));
 	_kernel_clear_context_flags(KEYB_INPUT_PENDING);

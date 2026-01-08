@@ -9,14 +9,17 @@ extern _kernel_onKeybScan
 
 _isr_keyboard:
 
-    push    rbp
-    mov     rbp, rsp
-
     push    rax
+    push    rcx
+    push    rdx
+    
+    push    rsi
     push    rdi
 
-    xor     rax, rax
-    mov     rdi, rax
+    push    r8
+    push    r9
+    push    r10
+    push    r11
 
     in      al, 0x60
 
@@ -26,16 +29,28 @@ _isr_keyboard:
     jz      .keyb_eoisr
 
     cmp     al, 0xfa ; keyb command ACK
-    jz      .keyb_eoisr  
+    jz      .keyb_eoisr
 
-    mov     dil, al
+    sub     rsp, 8
+
+    movzx   edi, al
     call    _kernel_onKeybScan ; call kernel keyboard routine
+
+    add     rsp, 8
 
 .keyb_eoisr:
     call    _lapic_eoi      ; signal end of interrupt
 
+    pop     r11
+    pop     r10
+    pop     r9
+    pop     r8
+
     pop     rdi
+    pop     rsi
+
+    pop     rdx
+    pop     rcx
     pop     rax
-    pop     rbp
 
     iretq

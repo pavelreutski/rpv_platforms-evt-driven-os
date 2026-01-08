@@ -114,11 +114,16 @@ void fat_ls(char const* path, void const* ls_ctx,
 
 void fat_fclose(int fd) {
 
-    if (fd < 0 || fd >= MAX_OPEN_FILES) {
+    if ((fd < 0) || (fd >= MAX_OPEN_FILES)) {
         return;
     }
 
     FIL *fp = (FIL *) open_files[fd];
+
+    if (fp == NULL) {
+        return;
+    }
+
     set_fatErrCode(f_close(fp));
 
     files--;

@@ -60,26 +60,31 @@ void print_char(const char c) {
 
     switch (c) {
 
-    case '\t': { // TAB
-        print_tab(); } break;
+        case '\t': { // TAB
+            print_tab(); } break;
+
+        case '\r': { // Cariage return
+            cursor.x = 0;
+        } break;
+            
+        case '\n': { // New line
+            print_newLine(); } break;
+
+        case '\b':
+        case '\x7F': { // DEL
+            print_del(); } break;
         
-    case '\n': { // New line
-        print_newLine(); } break;
+        default: {
 
-    case '\b':
-    case '\x7F': { // DEL
-        print_del(); } break;
-    
-    default: {
+            if (cursor.x >= CGA_NUM_COLS) {
+                print_newLine();
+            }
 
-        if (cursor.x >= CGA_NUM_COLS) {
-            print_newLine();
-        }
+            cga_buffer[cursor.x + cursor.y * CGA_NUM_COLS] = 
+                (cga_char_t) { code : (uint8_t) c, color : char_color };
 
-        cga_buffer[cursor.x + cursor.y * CGA_NUM_COLS] = 
-            (cga_char_t) { code : (uint8_t) c, color : char_color };
-
-        cursor.x++; } break;
+            cursor.x++; 
+        } break;
     }
 }
 

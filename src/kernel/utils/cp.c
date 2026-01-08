@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "fat.h"
 #include "kernel_stdio.h"
@@ -7,6 +8,11 @@
 #include "utils/cp.h"
 
 #define FILE_BUFFER                                 (2048)
+
+#define CON_P                                       ("con")
+
+#define FILE_NO_DATA_TO_SAVE_MSG                    ("Nothing to save\n")
+#define FILE_SAVED_MSG                              ("File saved successfully\n")
 
 #define FILE_WRITE_FAILED_MSG                       ("write failed")
 
@@ -16,7 +22,15 @@
 #define NO_SUCH_FILE_MSG                            ("No such file")
 #define TOO_FEW_PARAMS_MSG                          ("Too few parameters specified\n")
 
+#define FILE_EXISTS_MSG                             ("Console out to file error: file exists\n")
+
+#define CON_TO_FILE_COPY_WELCOME_MSG                ("Console out to file is opened => Text being input will be saved to the file\n")
+#define CON_TO_FILE_COPY_HINT_MSG                   ("Press keys: F1 to save, F2 to display this message again and ESC to quit...\n")
+
+static int con_toFile(char const* path);
+
 static void close_fdesc(int sfd, int dfd);
+static bool flush_conFile(int fd, char const* buffer, size_t *len);
 
 int cp_m(const int argc, const char **argv) {
 
@@ -24,6 +38,10 @@ int cp_m(const int argc, const char **argv) {
 
         _kernel_outString(TOO_FEW_PARAMS_MSG);
         return -1;
+    }
+
+    if (strcmp(argv[0], CON_P) == 0) { // copy con [file]
+        return con_toFile(argv[1]);
     }
 
     char *src_p = (char *) argv[0];
@@ -72,8 +90,141 @@ int cp_m(const int argc, const char **argv) {
     return 0;
 }
 
-static void close_fdesc(int sfd, int dfd) {
+static __attribute__((noinline)) void close_fdesc(int sfd, int dfd) {
 
     fat_fclose(sfd);
     fat_fclose(dfd);
+}
+
+static __attribute__((noinline)) bool flush_conFile(int fd, char const* buffer, size_t *len) {
+
+    size_t l = *len;
+
+    if (l == 0) {
+        return true;
+    }
+
+    bool write_Ok = (fat_fwrite(fd, buffer, l) == l);
+
+    _kernel_outLn();
+
+    if (!write_Ok) {
+        _kernel_outString(FILE_WRITE_FAILED_MSG);
+    } else {
+
+        *len = 0;      
+        _kernel_outString(FILE_SAVED_MSG);
+    }
+
+    return write_Ok;
+}
+
+static __attribute__((noinline)) int con_toFile(char const* path) {
+
+    if (fat_exists(path)){
+
+        _kernel_outString(FILE_EXISTS_MSG);
+        return -1;
+    }
+
+    int fd;
+
+    if ((fd = fat_fopen(path, FILE_CREATE | FILE_WRITE)) < 0) {
+
+        _kernel_outString(FILE_WRITE_FAILED_MSG);
+        return -1;
+    }
+
+    _kernel_outString(CON_TO_FILE_COPY_WELCOME_MSG);
+    _kernel_outString(CON_TO_FILE_COPY_HINT_MSG);
+
+    size_t len = 0;
+    int ret_code = 0;
+
+    bool input_loop = true;
+
+    char buffer[FILE_BUFFER];
+
+    do {
+
+        if (len == sizeof(buffer)) {
+
+            if (!flush_conFile(fd, buffer, &len)) {
+                
+                ret_code = -1;
+                input_loop = false;
+
+                continue;
+            }
+        }
+
+        console_key_t key;
+        _kernel_getKey(&key);
+
+        switch (key.scan_code) {
+
+            case 0x76: { // ESC
+
+                input_loop = false;
+
+                if (!flush_conFile(fd, buffer, &len)) {
+                    ret_code = -1;
+                }
+
+            } break;
+
+            case 0x05: { // F1
+
+                if (len == 0) {
+
+                    _kernel_outLn();
+                    _kernel_outString(FILE_NO_DATA_TO_SAVE_MSG);
+                    break;
+                }
+
+                if (!flush_conFile(fd, buffer, &len)) {
+
+                    ret_code = -1;
+                    input_loop = false;                    
+                }
+
+            } break;
+
+            case 0x06: { // F2
+                _kernel_outLn();
+                _kernel_outString(CON_TO_FILE_COPY_HINT_MSG);
+            } break;
+        
+            default: {
+
+                if (key.code == '\0') {
+                    break;
+                }
+
+                switch (key.code) {
+
+                    case '\b': { // backspace
+
+                        if (len == 0) { 
+                            continue; 
+                        }
+
+                        len--;
+
+                    } break;
+                
+                    default: {
+                        buffer[len++] = key.code;
+                    } break;
+                }
+
+                _kernel_outChar(key.code);
+
+            } break;
+        }
+
+    } while(input_loop);
+
+    close_fdesc(-1, fd);
+    return ret_code;
 }

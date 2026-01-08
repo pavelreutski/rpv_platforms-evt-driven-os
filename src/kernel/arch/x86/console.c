@@ -13,7 +13,9 @@ static void __attribute__((noinline)) move_cursor(void);
 
 void con_ln(void) {
 
+    print_char('\r');
     print_char('\n');
+    
     move_cursor();
 }
 

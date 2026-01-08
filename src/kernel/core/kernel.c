@@ -15,7 +15,7 @@
 #define MAX_QUEUE_EVENTS			   (10)
 #define MAX_EVT_SUBSCRIBERS            (10)
 
-#define MAX_PROCCESSES                 (10)
+#define MAX_PROCCESSES                 (1)
 #define MAX_EXEC_PROC_ALLOWED          (1)
 
 #define EVT_PROG_PROCESS_FINISHED      (0xff)
@@ -165,11 +165,10 @@ void _kernel_exec_f(
 		int (*exec_callee_addr)(int argc, const char **argv),
 		int argc, const char **argv) {
 
-	if (!(ExecProc ^ MAX_EXEC_PROC_ALLOWED))
+	if (ExecProc == MAX_EXEC_PROC_ALLOWED)
 		return; // [DEBUG]: Running more than one user process isn`t allowed yet
 
-	exec_proccess_t *proc =
-			(Processes + ExecProc);
+	exec_proccess_t *proc = &Processes[ExecProc];
 
 	proc -> argc = argc;
 	proc -> argv = argv;
@@ -200,7 +199,7 @@ void _kernel_context_flags(uint16_t setFlags, uint16_t **ctxFlags) {
 // -------------------------------------------------------------------------------------------------------------------------------------------
 
 static uint16_t *getContextFlags() {
-	return Process ?
+	return (Process != NULL) ?
 			&(Process -> flags) : &KernelFlags;
 }
 
@@ -237,25 +236,23 @@ static void unsubscribeExecCtx() {
 			Process -> subscriptions;
 }
 
-static void makeProcessExecWhenRequested() {
+static __attribute__((noinline)) void makeProcessExecWhenRequested() {
 
 	if (!ExecProc) return;
-	if (Process &&
-			!((Process -> id) ^ ExecProc)) return; // When OS pipeline is invoked from the current process
+	if ((Process != NULL) &&
+			((Process -> id) == (uint16_t) ExecProc)) return; // When OS pipeline is invoked from the current process
 
 	runExecCtx();
 
 	ExecProc--;
-	Process = ExecProc ? Process + (ExecProc - 1) : NULL; // Pop previouse process or NULL when the bottom most stack process is finished
+	Process = (ExecProc > 0) ? Process + (ExecProc - 1) : NULL; // Pop previouse process or NULL when the bottom most stack process is finished
 }
 
-static void runExecCtx() {
+static __attribute__((noinline)) void runExecCtx() {
 
-	Process =
-			Processes + (ExecProc - 1);
+	Process = &Processes[ExecProc - 1];
 
 	Process -> id = ExecProc;
-
 	Process -> subscriptions ^=
 			Process -> subscriptions;
 
