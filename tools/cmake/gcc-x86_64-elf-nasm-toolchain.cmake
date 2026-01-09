@@ -36,8 +36,13 @@ set(CMAKE_READELF      ${CROSS}-readelf)
 # Global compiler flags
 # ---------------------
 
+set(C_FLAGS -m64 -Wall -Wextra -O2 -g -gdwarf-4 
+            -ffreestanding -fno-builtin
+            -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -msoft-float
+            -fno-pic -fno-pie -fno-omit-frame-pointer -fno-stack-protector -fno-strict-aliasing)
+
 add_compile_options(
-    "$<$<COMPILE_LANGUAGE:C>:-m64;-Wall;-Wextra;-O2;-g;-gdwarf-4;-ffreestanding;-fno-builtin;-fno-pic;-fno-pie;-fno-omit-frame-pointer;-fno-stack-protector;-fno-strict-aliasing;-mno-red-zone;-mno-sse;-mno-sse2;-mno-mmx;-msoft-float>")
+    "$<$<COMPILE_LANGUAGE:C>:${C_FLAGS}>")
 
 # ---------------------
 # Include directories

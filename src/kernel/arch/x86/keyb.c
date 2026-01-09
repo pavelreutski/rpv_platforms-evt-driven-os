@@ -99,7 +99,7 @@ void __attribute__((sysv_abi)) _kernel_onKeybScan(uint8_t scan_code) {
                         scan_code: scan_code
                      };
 
-                    _kernel_publish_evt(
+                    _kernel_pubEvt(
                             EVT_USERCON_KEY,  (evt_data_t *) &key);
                 }
             }

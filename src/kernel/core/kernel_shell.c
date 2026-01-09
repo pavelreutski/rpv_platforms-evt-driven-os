@@ -14,9 +14,9 @@
 #include "kernel.h"
 #include "kernel_fsh.h"
 #include "kernel_fio.h"
+#include "kernel_jrnl.h"
 #include "kernel_exec.h"
 #include "kernel_stdio.h"
-#include "kernel_journal.h"
 
 #include "utils/cp.h"
 #include "utils/type.h"
@@ -145,7 +145,7 @@ void _shell_start() {
 
 	/// Self event subscriptions
 
-	_kernel_subscribe_kernel_evt(
+	_kernel_subkEvt(
 			0xff, onProg_processFinished);
 	
 	_kernel_outLn();
@@ -212,7 +212,7 @@ static void translate_userInput() {
 					_kernel_outLn();
 
 					uint8_t execType =
-							try_executeCommand(); //// Try execute currently typed command
+							try_executeCommand(); // Try execute currently typed command
 
 					CmdBufferLength ^=
 							CmdBufferLength;

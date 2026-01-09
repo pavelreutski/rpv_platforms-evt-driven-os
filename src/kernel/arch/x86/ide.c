@@ -4,7 +4,7 @@
 
 #include "disk.h"
 #include "kernel_stdio.h"
-#include "kernel_journal.h"
+#include "kernel_jrnl.h"
 
 #define IDE_DEV_BUSES               (2)
 #define IDE_BUS_DEVICES             (2)

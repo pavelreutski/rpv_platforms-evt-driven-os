@@ -1,12 +1,13 @@
 #include <string.h>
 #include <stdarg.h>
+#include <signal.h>
 
 #include "events.h"
 #include "console.h"
 
 #include "kernel.h"
 #include "kernel_stdio.h"
-#include "kernel_context.h"
+#include "kernel_signal.h"
 
 static console_key_t key_Buffer;
 
@@ -26,7 +27,7 @@ static void format_core(void (*out)(void **, char const*), void **ctx, char cons
 void _kernel_stdio(void) {
 
 	set_con();
-	_kernel_subscribe_kernel_evt(
+	_kernel_subkEvt(
 				EVT_USERCON_KEY, onKernel_keyPressed);
 }
 
@@ -74,40 +75,46 @@ bool _kernel_tryGetKey(console_key_t *key) {
 
 	memset(key, 0, sizeof(console_key_t));
 
-	uint16_t *flags;
-	_kernel_context_flags(KEYB_INPUT_PENDING, &flags);
+	sigset_t set;
 
-	_kernel_pipeline();
+	_kernel_sigemptyset(&set);
+	_kernel_sigaddset(&set, SIGINT);
 
-	bool isConKeyEvent =
-			(*flags & KEYB_INPUT_PENDING) ^
-						KEYB_INPUT_PENDING;
+	sigprocmask(SIG_BLOCK, &set, NULL);
 
-	if (isConKeyEvent)
+	sigset_t pending;
+	_kernel_sigemptyset(&pending);
+
+	sigpending(&pending);
+	
+	bool is_sigInt = _kernel_sigismember(&pending, SIGINT);
+
+	if (is_sigInt) {
 		memcpy(key, &key_Buffer, sizeof(console_key_t));
+	}
 
-	return isConKeyEvent;
+	return is_sigInt;
 }
 
 void _kernel_getKey(console_key_t *key) {
 
-	memset(key, 0, sizeof(console_key_t));
+	sigset_t set;
 
-	uint16_t *flags;
-	_kernel_context_flags(
-			KEYB_INPUT_PENDING, &flags);
+	_kernel_sigemptyset(&set);
+	_kernel_sigaddset(&set, SIGINT);
 
-	while(*flags &
-			KEYB_INPUT_PENDING)
-		_kernel_pipeline();
+	sigprocmask(SIG_BLOCK, &set, NULL);
+
+	int sig;
+	sigwait(&set, &sig);
 
 	memcpy(key, &key_Buffer, sizeof(console_key_t));
 }
 
 static __attribute__((noinline)) void onKernel_keyPressed(evt_data_t *evtData) {
 	
+	raise(SIGINT);
     memcpy(&key_Buffer, (console_key_t *) evtData, sizeof(console_key_t));
-	_kernel_clear_context_flags(KEYB_INPUT_PENDING);
 }
 
 static void out_console(void **ctx, char const* s) {

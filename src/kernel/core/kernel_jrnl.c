@@ -2,19 +2,19 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "kernel_jrnl.h"
 #include "kernel_stdio.h"
-#include "kernel_journal.h"
 
 #define MAX_JOURNAL_SIZE            (2048)
 
+static uint16_t j_rp                   = 0;
+static uint16_t j_wp                   = 0;
+
+static size_t j_len                    = MAX_JOURNAL_SIZE;
+
 static char journal[MAX_JOURNAL_SIZE];
 
-static uint16_t j_rp = 0;
-static uint16_t j_wp = 0;
-
-static size_t j_len = MAX_JOURNAL_SIZE;
-
-static void drop_oldest_entries(size_t entry_len);
+static void drop_oldestEntries(size_t entry_len);
 static size_t j_read(char *entry, const size_t max_len);
 
 bool _kernel_jnxtentry(char *entry, const size_t max_len) {
@@ -39,7 +39,7 @@ void _kernel_jentry(char const* fmt, ...) {
         return;
     }
 
-    drop_oldest_entries(entry_len);
+    drop_oldestEntries(entry_len);
 
     size_t tail = (MAX_JOURNAL_SIZE - j_wp);
 
@@ -65,7 +65,7 @@ void _kernel_jentry(char const* fmt, ...) {
     j_len -= entry_len;
 }
 
-static void drop_oldest_entries(size_t entry_len) {
+static void drop_oldestEntries(size_t entry_len) {
 
     while (j_len < entry_len) {        
 

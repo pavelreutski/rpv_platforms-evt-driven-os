@@ -5,7 +5,7 @@
 #include "disk.h"
 
 #include "kernel_fio.h"
-#include "kernel_journal.h"
+#include "kernel_jrnl.h"
 
 #define MAX_FIO_DISKS   10
 
