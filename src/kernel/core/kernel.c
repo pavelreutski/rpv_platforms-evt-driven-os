@@ -1,6 +1,9 @@
+#include <assert.h>
+
 #include <string.h>
 #include <stdint.h>
 #include <signal.h>
+#include <limits.h>
 
 #include "kernel.h"
 #include "kernel_exec.h"
@@ -19,14 +22,14 @@
 
 #define EVT_PROCESS_FINISHED           (0xff)
 
-typedef struct {
+struct evt_s {
 
 	uint8_t evtId;
 	evt_data_t evtData;
 
-} evt_t;
+};
 
-typedef struct {
+struct evt_sub_token_s {
 
 	uint8_t user_evtSubs;
 	uint8_t kernel_evtSubs;
@@ -34,21 +37,27 @@ typedef struct {
 	evt_subscriber user_subscribers[MAX_EVT_SUBSCRIBERS];
 	evt_subscriber kernel_subscribers[MAX_EVT_SUBSCRIBERS];
 
-} evt_subscription_token_t;
+};
 
-typedef struct {
+struct proc_s {
 
 	int argc;
 	const char **argv;
-	int (*exec_callee_addr)(int argc, const char **argv);
+	int (*callee_addr)(int argc, const char **argv);
 
-	evt_subscription_token_t *evt_tokens[USER_EVENTS_POOL];
+	struct evt_sub_token_s *evt_tokens[USER_EVENTS_POOL];
 
 	uint16_t id;
-	uint16_t flags;
 	uint16_t subscriptions;
 
-} exec_proccess_t;
+	sigset_t flags;
+	sigset_t flagMask;
+};
+
+typedef struct evt_s evt_t;
+typedef struct evt_sub_token_s evt_subscription_token_t;
+
+typedef struct proc_s process_t;
 
 static uint8_t evt_head                                 = 0;
 static uint8_t evt_tail                                 = 0;
@@ -57,15 +66,17 @@ static uint8_t free_events                              = MAX_QUEUE_EVENTS;
 
 static evt_t events[MAX_QUEUE_EVENTS];
 static evt_subscription_token_t evt_tokens[MAX_EVENTS];
-
-static uint16_t kernel_flags                            = 0;
+   
+static sigset_t kernel_flags                            = 0;
+static sigset_t kernel_flagMask                         = 0;
 
 static uint8_t proc_exec                                = 0;
 
-static exec_proccess_t *process                         = NULL;
-static exec_proccess_t processes[MAX_PROCCESSES];
+static process_t *process                               = NULL;
+static process_t processes[MAX_PROCCESSES];
 
-static uint16_t* context_flags(void);
+static sigset_t* context_flags(void);
+static sigset_t* context_flagMask(void);
 
 static void run_proc(void);
 static void unsubscribe_proc(void);
@@ -154,12 +165,12 @@ void _kernel_exec_f(
 	if (proc_exec == MAX_EXEC_PROC_ALLOWED)
 		return; // [DEBUG]: Running more than one user process isn`t allowed yet
 
-	exec_proccess_t *proc = &processes[proc_exec];
+	process_t *proc = &processes[proc_exec];
 
 	proc -> argc = argc;
 	proc -> argv = argv;
 
-	proc -> exec_callee_addr = exec_callee_addr;
+	proc -> callee_addr = exec_callee_addr;
 
 	proc_exec++;
 }
@@ -167,72 +178,139 @@ void _kernel_exec_f(
 // ------------------------------------------ signals -------------------------------------------------------------
 
 int	raise(int sgl) {
-	(void) sgl;
-	return -1;
+
+	int flag = sgl;
+
+	flag--;
+	if ((flag < 0) || 
+			((size_t) flag > (sizeof(sigset_t) * CHAR_BIT))) {
+		return -1;
+	}
+
+	sigset_t *ctx_flags = context_flags();
+	*ctx_flags |= (((sigset_t) 1) << flag);
+
+	return 0;
 }
 
 int sigwait(const sigset_t *set, int *sgl) {
 
-	(void) set;
-	(void) sgl;
+	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
-	context_flags();
+	sigset_t sgls = 0;
+	sigset_t wait_set = *set;
 
-	return -1;
+	sigset_t *ctx_flags = context_flags();
+
+	do {		
+		_kernel_pipeline();
+		sgls = ((*ctx_flags) & wait_set);
+	} while(sgls == 0);
+
+	int s;
+	sigset_t i;
+
+	for (i = 0, s = (sgls & 1); 
+			(s == 0) && (i < (sizeof(sigset_t) * CHAR_BIT)); 
+					i++, sgls >>= 1, s = (sgls & 1)) { }
+
+	*sgl = (i + 1);
+	*ctx_flags &= (~(((sigset_t) 1) << i));
+
+	return 0;
 }
 
 int sigpending(sigset_t *set) {
-	(void) set;
-	return -1;
+
+	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
+
+	sigset_t pending_set = 0;
+	sigset_t *ctx_flags = context_flags();
+
+	_kernel_pipeline();
+	pending_set = *ctx_flags;
+
+	*set = pending_set;
+	return 0;
 }
 
 int sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
 	
-	(void) what;
-	(void) set;
-	(void) oldset;
+	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
-	return -1;
+	sigset_t *ctx_flagMask = context_flagMask();
+
+	if (oldset != NULL) {
+		*oldset = *ctx_flagMask;
+	}
+
+	if (set == NULL) {
+		return 0;
+	}
+
+	switch(what) {
+
+		case SIG_UNBLOCK: {
+						
+			*ctx_flagMask &= ~(*set);
+
+			sigset_t *ctx_flags = context_flags();
+			*ctx_flags &= *(ctx_flagMask);
+		} break;
+
+		case SIG_SETMASK: { *ctx_flagMask = *set; } break;
+		case SIG_BLOCK: { *ctx_flagMask |= (*set); } break;
+
+		default:
+			return -1;
+	}
+
+	return 0;
 }
 
 int _kernel_sigemptyset(sigset_t *set) {
-	(void) set;
-	return -1;
+	*set = 0;
+	return 0;
 }
 
 int _kernel_sigaddset(sigset_t *set, const int sgl) {
 
-	(void) set;
-	(void) sgl;
+	int flag = sgl;
 
-	return -1;
+	flag--;
+	if ((flag < 0) ||
+			((size_t) flag > sizeof(sigset_t) * CHAR_BIT)) {
+		return -1;
+	}
+
+	*set |= (((sigset_t) 1) << flag);
+
+	return 0;
 }
 
 bool _kernel_sigismember(sigset_t *set, const int sgl) {
 
-	(void) set;
-	(void) sgl;
+	int flag = sgl;
 
-	return false;
+	flag--;
+	if ((set == NULL) || (flag < 0) || 
+			((size_t) flag > (sizeof(sigset_t) * CHAR_BIT))) {
+		return false;
+	}
+
+	return ((*set) & ((((sigset_t) 1) << flag)));
 }
-
-/*void _kernel_clear_context_flags(uint16_t clrFlags) {
-
-	uint16_t *ctxFlags = context_flags();
-	*ctxFlags &= (~clrFlags);
-}
-
-void _kernel_context_flags(uint16_t setFlags, uint16_t **ctxFlags) {
-
-	*ctxFlags = context_flags();
-	**ctxFlags |= setFlags;
-}*/
 
 // -------------------------------------------- internal private --------------------------------------------------
 
-static uint16_t* context_flags(void) {
+static sigset_t* context_flags(void) {
 	return (process != NULL) ?
 			&(process -> flags) : &kernel_flags;
+}
+
+static sigset_t* context_flagMask(void) {
+	return (process != NULL) ?
+		&(process -> flagMask) : &kernel_flagMask;
 }
 
 static __attribute__((noinline)) void exec_evts(void) {
@@ -309,10 +387,10 @@ static __attribute__((noinline)) void run_proc() {
 	uint8_t argc = process -> argc;
 	const char **argv = (const char **) process -> argv;
 
-	int (*exec_callee_addr)(int argc,
-			const char **argv) = process -> exec_callee_addr;
+	int (*callee_addr)(int argc,
+			const char **argv) = process -> callee_addr;
 
-	exec_callee_addr(argc, argv);
+	callee_addr(argc, argv);
 
 	// Unsubscribe just finished process
 

@@ -90,6 +90,8 @@ bool _kernel_tryGetKey(console_key_t *key) {
 	bool is_sigInt = _kernel_sigismember(&pending, SIGINT);
 
 	if (is_sigInt) {
+
+		sigprocmask(SIG_UNBLOCK, &set, NULL);
 		memcpy(key, &key_Buffer, sizeof(console_key_t));
 	}
 
