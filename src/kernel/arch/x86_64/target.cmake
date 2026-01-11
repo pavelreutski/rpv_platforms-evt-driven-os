@@ -25,6 +25,6 @@ target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                         -T${CMAKE_CURRENT_SOURCE_DIR}/scripts/kernel-x86_64-linker.ld
                                         -Wl,-Map,$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map)
 
+elf_dump(${PROJECT_NAME})
 kernel_iso(${PROJECT_NAME})
 qemu_simul(${PROJECT_NAME})
-elf_dump(${PROJECT_NAME})

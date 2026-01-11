@@ -9,6 +9,7 @@ if(KERNEL_TARGET STREQUAL "x86_64")
 
     set(USE_FATFS ON)
     include(./arch/x86_64/target.cmake)
+    
 elseif(KERNEL_TARGET STREQUAL "microchip_avr")
 
     set(USE_FATFS OFF)

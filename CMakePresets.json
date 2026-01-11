@@ -34,6 +34,7 @@
         }
     ],
     "buildPresets": [
-        { "name": "x86_64-debug", "configurePreset": "x86_64-debug" }
+        { "name": "x86_64-debug", "configurePreset": "x86_64-debug" },
+        { "name": "microchip_avr-debug", "configurePreset": "microchip_avr-debug" }
     ]
 }
