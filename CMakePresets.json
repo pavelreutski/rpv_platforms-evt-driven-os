@@ -19,7 +19,18 @@
             "inherits": "base",
             "displayName": "x86_64 kernel debug build",
             "toolchainFile": "${sourceDir}/tools/cmake/gcc-x86_64-elf-nasm-toolchain.cmake",
-            "cacheVariables": { "CMAKE_BUILD_TYPE" : "Debug" }
+            "cacheVariables": { 
+                "KERNEL_TARGET" : "x86_64",
+                "CMAKE_BUILD_TYPE" : "Debug" }
+        },
+        {
+            "name": "microchip_avr-debug",
+            "inherits": "base",
+            "displayName": "Microchip AVR kernel debug build",
+            "toolchainFile": "",
+            "cacheVariables": {
+                "KERNEL_TARGET" : "microchip_avr",
+                "CMAKE_BUILD_TYPE" : "Debug" }
         }
     ],
     "buildPresets": [

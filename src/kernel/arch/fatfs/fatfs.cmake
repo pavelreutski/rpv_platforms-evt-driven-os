@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# Fetch 3rd parties
+
+FetchContent_Declare(
+    fatfs
+    GIT_REPOSITORY git@github.com:abbrev/fatfs.git
+    GIT_TAG        master
+)
+
+FetchContent_MakeAvailable(fatfs)
+
 # FatFs options
 
 set(FF_FS_READONLY      0)

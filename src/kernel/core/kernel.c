@@ -156,6 +156,14 @@ void _kernel_pipeline() {
 	process = (proc_exec > 0) ? &processes[proc_exec - 1] : NULL; // pop previouse process or NULL when the bottom most stack process is finished
 }
 
+// ------------------------------------------ kenel svc -----------------------------------------------------------
+
+void _kernel_svchost() {
+}
+
+void _kernel_svcPipeline() {
+}
+
 // ------------------------------------------ kexec -------------------------------------------------------------
 
 void _kernel_exec_f(
