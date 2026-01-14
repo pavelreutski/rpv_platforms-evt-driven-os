@@ -1,6 +1,5 @@
 #include <string.h>
 #include <stdarg.h>
-#include <signal.h>
 
 #include "events.h"
 #include "console.h"
@@ -11,7 +10,7 @@
 
 static console_key_t key_Buffer;
 
-static void onKernel_keyPressed(evt_data_t *evtData);
+static void onKernel_userConKey(evt_data_t *evtData);
 
 static void out_console(void **ctx, char const* s);
 static void out_strbuffer(void **ctx, char const* s);
@@ -27,8 +26,7 @@ static void format_core(void (*out)(void **, char const*), void **ctx, char cons
 void _kernel_stdio(void) {
 
 	set_con();
-	_kernel_subkEvt(
-				EVT_USERCON_KEY, onKernel_keyPressed);
+	_kernel_subEvt(EVT_USERCON_KEY, onKernel_userConKey);
 }
 
 void _kernel_outLn(void) {
@@ -80,18 +78,18 @@ bool _kernel_tryGetKey(console_key_t *key) {
 	_kernel_sigemptyset(&set);
 	_kernel_sigaddset(&set, SIGINT);
 
-	sigprocmask(SIG_BLOCK, &set, NULL);
+	_kernel_sigprocmask(SIG_BLOCK, &set, NULL);
 
 	sigset_t pending;
 	_kernel_sigemptyset(&pending);
 
-	sigpending(&pending);
+	_kernel_sigpending(&pending);
 	
 	bool is_sigInt = _kernel_sigismember(&pending, SIGINT);
 
 	if (is_sigInt) {
 
-		sigprocmask(SIG_UNBLOCK, &set, NULL);
+		_kernel_sigprocmask(SIG_UNBLOCK, &set, NULL);
 		memcpy(key, &key_Buffer, sizeof(console_key_t));
 	}
 
@@ -105,17 +103,17 @@ void _kernel_getKey(console_key_t *key) {
 	_kernel_sigemptyset(&set);
 	_kernel_sigaddset(&set, SIGINT);
 
-	sigprocmask(SIG_BLOCK, &set, NULL);
+	_kernel_sigprocmask(SIG_BLOCK, &set, NULL);
 
 	int sig;
-	sigwait(&set, &sig);
+	_kernel_sigwait(&set, &sig);
 
 	memcpy(key, &key_Buffer, sizeof(console_key_t));
 }
 
-static __attribute__((noinline)) void onKernel_keyPressed(evt_data_t *evtData) {
+static __attribute__((noinline)) void onKernel_userConKey(evt_data_t *evtData) {
 	
-	raise(SIGINT);
+	_kernel_raise(SIGINT);
     memcpy(&key_Buffer, (console_key_t *) evtData, sizeof(console_key_t));
 }
 

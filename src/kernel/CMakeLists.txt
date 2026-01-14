@@ -39,5 +39,3 @@ target_sources(${PROJECT_NAME} PRIVATE ./entry.c
 target_include_directories(${PROJECT_NAME} PUBLIC ./include
                                                   ./include/core
                                                   ./include/services)
-
-target_compile_options(${PROJECT_NAME} PRIVATE -mcmodel=kernel)

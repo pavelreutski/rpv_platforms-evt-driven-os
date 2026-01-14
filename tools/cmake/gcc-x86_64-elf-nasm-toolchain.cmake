@@ -37,7 +37,7 @@ set(CMAKE_READELF      ${CROSS}-readelf)
 # ---------------------
 
 set(C_FLAGS -m64 -Wall -Wextra -O2 -g -gdwarf-4 
-            -ffreestanding -fno-builtin
+            -ffreestanding -fno-builtin -mcmodel=kernel
             -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -msoft-float
             -fno-pic -fno-pie -fno-omit-frame-pointer -fno-stack-protector -fno-strict-aliasing)
 

@@ -73,7 +73,7 @@ size_t hex_monitor(void const* mem, const size_t s) {
 			char c = blck_data[offset + i];
 
 			c = (c == '\0') || (c == ' ') || 
-					(c == '\t') || (c == '\n') || (c == '\a')  ? '.' : c; 
+					(c == '\t') || (c == '\x0d') || (c == '\n') || (c == '\a')  ? '.' : c; 
 
 			_kernel_outChar(c);
 		}

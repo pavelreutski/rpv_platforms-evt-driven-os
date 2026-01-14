@@ -4,10 +4,17 @@
 .EXPORT_ALL_VARIABLES:
 MAKEFLAGS = --no-print-directory
 
-# Build: configure if needed and build via CMake
+# Build: x86_64 target
+
 x86_64-debug:
 	cmake --preset x86_64-debug
 	cmake --build --preset x86_64-debug
+
+# Build: Microchip AVR target
+
+microchip-avr:
+	cmake --preset microchip_avr-debug
+	cmake --build --preset microchip_avr-debug
 
 # Build and generate kernel ISO
 x86_64-iso: x86_64-debug

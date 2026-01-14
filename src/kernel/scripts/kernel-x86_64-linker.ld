@@ -36,4 +36,13 @@ SECTIONS {
         *(COMMON)
         *(.bss*)
     } :data
+
+    /* ==== commands table ======= */
+
+    .cmd_table :
+    {
+        __cmd_table = .;
+        KEEP(*(.cmd_table))
+        __end_cmd_table = .;
+    } :data
 }

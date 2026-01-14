@@ -3,34 +3,33 @@
 #include <stdint.h>
 
 /// @brief defines user events in kernel (extendable by last member)
-typedef enum {
+enum user_events_e {
 
 	EVT_USERCON_KEY = 50,	
 	EVT_SYS_USER_EVENTS
-
-} user_events_t;
+};
 
 /// @brief define kernel events (not accessible for user subscriptions)
-typedef enum {
+enum kernel_events_e {
 
 	EVT_ONESHOT_TICK,
 	EVT_PERIODIC_TICK,
 	EVT_KERNEL_DTC,
 	EVT_KERNEL_EVENTS
+};
 
-} kernel_events_t;
+struct console_key_s {
 
-typedef struct {
-
-	char code;   // ASCII key code
+	char code;
 	uint8_t scan_code;
+};
 
-} console_key_t;
+union evt_data_u {
+	
+	struct console_key_s con_key;
+};
 
-typedef union {
+typedef union evt_data_u evt_data_t;
+typedef struct console_key_s console_key_t;
 
-	console_key_t con_key;
-
-} evt_data_t;
-
-typedef void (*evt_subscriber)(evt_data_t* evtData);
+typedef void (*evt_subscriber_t)(evt_data_t* evtData);

@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <signal.h>
 #include <limits.h>
 
 #include "kernel.h"
@@ -17,9 +16,6 @@
 #define MAX_QUEUE_EVENTS			   (10)
 #define MAX_EVT_SUBSCRIBERS            (10)
 
-#define MAX_PROCCESSES                 (1)
-#define MAX_EXEC_PROC_ALLOWED          (1)
-
 #define EVT_PROCESS_FINISHED           (0xff)
 
 struct evt_s {
@@ -31,52 +27,57 @@ struct evt_s {
 
 struct evt_sub_token_s {
 
-	uint8_t user_evtSubs;
-	uint8_t kernel_evtSubs;
+	uint8_t evt_id;
 
-	evt_subscriber user_subscribers[MAX_EVT_SUBSCRIBERS];
-	evt_subscriber kernel_subscribers[MAX_EVT_SUBSCRIBERS];
+	union {
+		uint8_t a8;
+		struct {
+			uint8_t proc_sub : 1;
+			uint8_t krnl_sub : 1;
+		} flags;
+	} attrib;
 
+	evt_subscriber_t evt_sub;
 };
 
 struct proc_s {
 
-	int argc;
-	const char **argv;
-	int (*callee_addr)(int argc, const char **argv);
-
-	struct evt_sub_token_s *evt_tokens[USER_EVENTS_POOL];
-
 	uint16_t id;
-	uint16_t subscriptions;
 
 	sigset_t flags;
 	sigset_t flagMask;
+
+	int argc;
+	const char **argv;
+	int (*callee_addr)(int argc, const char **argv);
 };
+
+typedef struct proc_s process_t;
 
 typedef struct evt_s evt_t;
 typedef struct evt_sub_token_s evt_subscription_token_t;
-
-typedef struct proc_s process_t;
 
 static uint8_t evt_head                                 = 0;
 static uint8_t evt_tail                                 = 0;
 
 static uint8_t free_events                              = MAX_QUEUE_EVENTS;
-
-static evt_t events[MAX_QUEUE_EVENTS];
-static evt_subscription_token_t evt_tokens[MAX_EVENTS];
-   
-static sigset_t kernel_flags                            = 0;
-static sigset_t kernel_flagMask                         = 0;
+static uint8_t free_evtSubs                             = MAX_EVT_SUBSCRIBERS;
 
 static uint8_t proc_exec                                = 0;
 
-static process_t *process                               = NULL;
-static process_t processes[MAX_PROCCESSES];
+static process_t proc;
+static process_t *rt_proc                               = NULL;
+
+static evt_t events[MAX_QUEUE_EVENTS];
+static evt_subscription_token_t evt_tokens[MAX_EVT_SUBSCRIBERS];
+
+static sigset_t kernel_flags                            = 0;
+static sigset_t kernel_flagMask                         = 0;
 
 static sigset_t* context_flags(void);
 static sigset_t* context_flagMask(void);
+
+static void subscribe_evt(uint8_t evtId, evt_subscriber_t sub);
 
 static void run_proc(void);
 static void unsubscribe_proc(void);
@@ -84,58 +85,23 @@ static void unsubscribe_proc(void);
 static void exec_evts(void);
 static void enque_evt(uint8_t evtId, evt_data_t* evtData);
 
-void _kernel_pubEvt(uint8_t evtId, evt_data_t* evtData) {
+void _kernel_pubEvt(uint8_t id, evt_data_t* data) {
 
-	if ((process != NULL) &&
-			(evtId < USER_EVENTS_POOL)) return; // Process tries publish kernel events
-
-	enque_evt(evtId, evtData);
-}
-
-void _kernel_subEvt(uint8_t evt, evt_subscriber subscriber) {
-
-	if (evt < USER_EVENTS_POOL) return;  // Only user events subscriptions allowed with this call for both Kernel and User
-
-	evt_subscription_token_t* token = &evt_tokens[evt];
-
-	if (token -> user_evtSubs == MAX_EVT_SUBSCRIBERS) return;
-
-	if (!((size_t) token -> user_subscribers[
-								token -> user_evtSubs - 1] ^ (size_t) subscriber)) return;
-
-	uint8_t processEvtToken =
-			evt % USER_EVENTS_POOL;
-
-	// When process subscription but already subscribed
-
-	if ((process != NULL) &&
-			process -> evt_tokens[processEvtToken]) {
-
-		token ->
-			user_subscribers[
-			      token -> user_evtSubs - 1] = subscriber; // Override with new subscriber
-
-		return;
+	if ((rt_proc != NULL) &&
+			(id < USER_EVENTS_POOL)) { 
+				return; // process tries publish kernel events
 	}
 
-	token -> user_subscribers[
-				(token -> user_evtSubs)++] = subscriber;
-
-	// When not a process subscription
-	if (process == NULL) return;
-
-	process -> evt_tokens[processEvtToken] = token;
-	process -> subscriptions++;
+	enque_evt(id, data);
 }
 
-void _kernel_subkEvt(uint8_t evt, evt_subscriber subscriber) {
+void _kernel_subEvt(uint8_t id, evt_subscriber_t subscriber) {
 
-	if (process != NULL) return; // Subscribing kernel events by the Process is not allowed
+	if ((rt_proc != NULL) && (id < USER_EVENTS_POOL)) {
+		return; // subscribing kernel events by the process is not allowed
+	}
 
-	evt_subscription_token_t* token = &evt_tokens[evt];
-	if (!((token -> kernel_evtSubs) ^ MAX_EVT_SUBSCRIBERS)) return;
-
-	token -> kernel_subscribers[(token -> kernel_evtSubs)++] = subscriber;
+	subscribe_evt(id, subscriber);
 }
 
 void _kernel_pipeline() {
@@ -147,13 +113,13 @@ void _kernel_pipeline() {
 		return;
 	}
 
-	if ((process != NULL) &&
-			((process -> id) == proc_exec)) return; // when kernel pipeline is invoked from the current process
+	if ((rt_proc != NULL) &&
+			((rt_proc -> id) == proc_exec)) return; // when kernel pipeline is invoked from the current process
 
 	run_proc(); // not a current process context -> run process
 
 	proc_exec--;
-	process = (proc_exec > 0) ? &processes[proc_exec - 1] : NULL; // pop previouse process or NULL when the bottom most stack process is finished
+	rt_proc = NULL;
 }
 
 // ------------------------------------------ kenel svc -----------------------------------------------------------
@@ -170,22 +136,21 @@ void _kernel_exec_f(
 		int (*exec_callee_addr)(int argc, const char **argv),
 		int argc, const char **argv) {
 
-	if (proc_exec == MAX_EXEC_PROC_ALLOWED)
-		return; // [DEBUG]: Running more than one user process isn`t allowed yet
+	if (rt_proc != NULL) {
+		return; // [DEBUG]: Running more than one user process isn`t allowed yet;
+	}
 
-	process_t *proc = &processes[proc_exec];
+	proc.argc = argc;
+	proc.argv = argv;
 
-	proc -> argc = argc;
-	proc -> argv = argv;
-
-	proc -> callee_addr = exec_callee_addr;
+	proc.callee_addr = exec_callee_addr;
 
 	proc_exec++;
 }
 
 // ------------------------------------------ signals -------------------------------------------------------------
 
-int	raise(int sgl) {
+int	_kernel_raise(int sgl) {
 
 	int flag = sgl;
 
@@ -201,7 +166,7 @@ int	raise(int sgl) {
 	return 0;
 }
 
-int sigwait(const sigset_t *set, int *sgl) {
+int _kernel_sigwait(const sigset_t *set, int *sgl) {
 
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
@@ -228,7 +193,7 @@ int sigwait(const sigset_t *set, int *sgl) {
 	return 0;
 }
 
-int sigpending(sigset_t *set) {
+int _kernel_sigpending(sigset_t *set) {
 
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
@@ -242,7 +207,7 @@ int sigpending(sigset_t *set) {
 	return 0;
 }
 
-int sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
+int _kernel_sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
 	
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
@@ -312,13 +277,13 @@ bool _kernel_sigismember(sigset_t *set, const int sgl) {
 // -------------------------------------------- internal private --------------------------------------------------
 
 static sigset_t* context_flags(void) {
-	return (process != NULL) ?
-			&(process -> flags) : &kernel_flags;
+	return (rt_proc != NULL) ?
+			&(rt_proc -> flags) : &kernel_flags;
 }
 
 static sigset_t* context_flagMask(void) {
-	return (process != NULL) ?
-		&(process -> flagMask) : &kernel_flagMask;
+	return (rt_proc != NULL) ?
+		&(rt_proc -> flagMask) : &kernel_flagMask;
 }
 
 static __attribute__((noinline)) void exec_evts(void) {
@@ -329,7 +294,7 @@ static __attribute__((noinline)) void exec_evts(void) {
 
 	do {
 
-		// Pull next event
+		// pull next event
 
 		evt_t *recv_evt =
 				&events[evt_head % MAX_QUEUE_EVENTS];
@@ -337,31 +302,62 @@ static __attribute__((noinline)) void exec_evts(void) {
 		evt_head++;
 		free_events++;
 
-		// Invoke Kernel/User subscribers
+		// call subscribers
 
-		evt_subscription_token_t *token = &evt_tokens[recv_evt -> evtId];
+		size_t i;
+		evt_subscription_token_t *token;
 
-		for(uint8_t counter = 0;
-				counter < token -> kernel_evtSubs; counter++)
-			(token -> kernel_subscribers[counter])(&(recv_evt -> evtData));
+		uint8_t recv_evtId = recv_evt -> evtId;
 
-		if (token -> user_evtSubs)
-			(token -> user_subscribers[token -> user_evtSubs - 1])(&(recv_evt -> evtData));
+		for (i = 0, token = evt_tokens; 
+				i < MAX_EVT_SUBSCRIBERS; i++, token++) {
+
+			if (token -> evt_id == recv_evtId) {
+				(token -> evt_sub)(&(recv_evt -> evtData));				
+			}
+		}
 
 	} while(free_events < MAX_QUEUE_EVENTS);
 }
 
+static __attribute__((noinline)) void subscribe_evt(uint8_t evtId, evt_subscriber_t sub) {
+
+	if (free_evtSubs == 0) {
+		return;
+	}
+
+	size_t i;
+	evt_subscription_token_t *token;
+
+	for (i = (evtId % MAX_EVT_SUBSCRIBERS), 
+			token = &evt_tokens[i]; token -> evt_sub != NULL; 
+				i++, i %= MAX_EVT_SUBSCRIBERS, token = &evt_tokens[i]) { }	
+
+	bool proc_sub = (rt_proc != NULL);
+
+	token -> evt_id = evtId;
+	token -> evt_sub = sub;
+
+	token -> attrib.flags.proc_sub = proc_sub;
+	token -> attrib.flags.krnl_sub = !proc_sub;
+
+	free_evtSubs--;
+}
+
 static __attribute__((noinline)) void enque_evt(uint8_t evtId, evt_data_t* evtData) {
 
-	if (!free_events) return;
+	if (free_events == 0) { 
+		return;
+	}
 
 	evt_t *evt =
 			&events[evt_tail % MAX_QUEUE_EVENTS];
 
 	evt -> evtId = evtId;
 
-	if (evtData)
+	if (evtData != NULL) {
 		memcpy(&evt -> evtData, evtData, sizeof(evt_data_t));
+	}
 
 	evt_tail++;
 	free_events--;
@@ -369,42 +365,41 @@ static __attribute__((noinline)) void enque_evt(uint8_t evtId, evt_data_t* evtDa
 
 static __attribute__((noinline)) void unsubscribe_proc() {
 
-	for (size_t i = 0; i < USER_EVENTS_POOL; i++) {
-
-		evt_subscription_token_t *token;
-
-		if ((token = process -> evt_tokens[i]) != NULL) {
-
-			(token -> user_evtSubs)--;
-			process -> evt_tokens[i] = NULL;
-		}
+	if (rt_proc == NULL) {
+		return;
 	}
 
-	process -> subscriptions ^=
-			process -> subscriptions;
+	size_t i = 0;
+	evt_subscription_token_t *token;
+	
+	for (i = 0, token = evt_tokens; 
+			i < MAX_EVT_SUBSCRIBERS; i++, token++) {
+
+		if (token -> attrib.flags.proc_sub) {
+
+			token -> attrib.a8 = 0;
+			token -> evt_sub = NULL;
+		}
+	}
 }
 
 static __attribute__((noinline)) void run_proc() {
 
-	process = &processes[proc_exec - 1];
+	rt_proc = &proc;
 
-	process -> id = proc_exec;
-	process -> subscriptions ^=
-			process -> subscriptions;
+	rt_proc -> id = proc_exec;
 
-	uint8_t argc = process -> argc;
-	const char **argv = (const char **) process -> argv;
+	uint8_t argc = rt_proc -> argc;
+	const char **argv = (const char **) rt_proc -> argv;
 
 	int (*callee_addr)(int argc,
-			const char **argv) = process -> callee_addr;
+			const char **argv) = rt_proc -> callee_addr;
 
 	callee_addr(argc, argv);
 
-	// Unsubscribe just finished process
+	// unsubscribe just finished process
+	unsubscribe_proc();
 
-	if (process -> subscriptions)
-		unsubscribe_proc();
-
-	// Publish process finished event
+	// publish process finished event
 	enque_evt(EVT_PROCESS_FINISHED, NULL);
 }
