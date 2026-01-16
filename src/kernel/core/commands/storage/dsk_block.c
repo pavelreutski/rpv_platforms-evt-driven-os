@@ -2,6 +2,7 @@
 
 #include "disk.h"
 #include "monitor.h"
+#include "console.h"
 
 #include "kernel_stdio.h"
 #include "private/command.h"
@@ -38,6 +39,7 @@ static uint8_t onDisk_blckRead(char const* data, const int argc, const char **ar
 		return EXEC_BUILT_IN;
 	}
 
+	con_clear();
 	hex_monitor(blck_data, sizeof(blck_data));
 
 	return EXEC_BUILT_IN;

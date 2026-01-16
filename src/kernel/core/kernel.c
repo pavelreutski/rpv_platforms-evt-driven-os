@@ -106,8 +106,8 @@ void _kernel_subEvt(uint8_t id, evt_subscriber_t subscriber) {
 
 void _kernel_pipeline() {
 
-	exec_evts();           // execute events (subscribers)
 	_kernel_svcPipeline(); // execute services pipeline
+	exec_evts();           // execute events (subscribers)	
 	
 	if (proc_exec == 0) {  // if a process exec is requested
 		return;

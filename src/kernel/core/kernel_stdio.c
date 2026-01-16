@@ -175,10 +175,14 @@ static void format_int(void (*out)(void **, char const*),
 static void format_hex(void (*out)(void **, char const*), 
 							void **ctx, unsigned value, size_t width, char pad) {
 	
-	char str_buf[sizeof(unsigned) * 2 + 1];
+	size_t s_width = 
+		width < (sizeof(unsigned) * 2) ? 
+				sizeof(unsigned) * 2 : width;
+
+ 	char s_buff[s_width + 1];
 	static const char hexdec[] = "0123456789ABCDEF";
 
-	char *s = str_buf + sizeof(str_buf);
+	char *s = s_buff + sizeof(s_buff);
 
 	*(--s) = '\0';
 	

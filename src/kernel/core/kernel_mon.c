@@ -36,8 +36,6 @@ size_t hex_monitor(void const* mem, const size_t s) {
 
     uint8_t *blck_data = (uint8_t *) mem;
 
-    con_clear();
-
 	#define LINE_BYTEW      3
 	#define LINE_BYTES      16
 
@@ -72,8 +70,11 @@ size_t hex_monitor(void const* mem, const size_t s) {
 
 			char c = blck_data[offset + i];
 
-			c = (c == '\0') || (c == ' ') || 
-					(c == '\t') || (c == '\x0d') || (c == '\n') || (c == '\a')  ? '.' : c; 
+			bool is_num = (c >= '0') && (c <= '9');
+			bool is_char = ((c >= 'a') && (c <= 'z')) || 
+								((c >= 'A') && (c <= 'Z'));
+
+			c = (is_num || is_char) ? c : '.'; 
 
 			_kernel_outChar(c);
 		}

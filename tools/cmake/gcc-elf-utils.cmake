@@ -19,9 +19,9 @@ function(elf_dump ELF_TARGET)
 
     add_custom_target(${ELF_TARGET}-elf-utils ALL
         COMMAND ${CMAKE_OBJCOPY} -O binary ${ELF_FILE} ${ELF_RAW_BIN_FILE}
-        COMMAND ${CMAKE_OBJDUMP} -h ${ELF_FILE} > ${ELF_SECTIONS_FILE}
+        COMMAND ${CMAKE_OBJDUMP} -h ${ELF_FILE} > ${ELF_SECTIONS_FILE}        
         DEPENDS ${ELF_TARGET}
-        COMMENT "running elf dump for ${ELF_TARGET}"
-    )
+        COMMENT "running elf utils for ${ELF_TARGET}"
+    )    
 
 endfunction()

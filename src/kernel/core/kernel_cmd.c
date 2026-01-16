@@ -1,64 +1,67 @@
 #include <string.h>
 
-#include "private/shell_cmd.h"
+#include "kernel_conf.h"
 
-#define MAX_BUFFER_COMMANDS          (5)
-#define MAX_COMMAND_LENGTH           (255)
+#include "private/command_stack.h"
 
 #define COMMAND(cmd_ptr)             (cmd_ptr % MAX_BUFFER_COMMANDS)
 
-static uint8_t CmdWndPtr         = 0;
+static uint8_t stack_cmd             = 0;
+static uint8_t stack_commands        = 0;
 
-static uint8_t WndCmds           = 0;
-static uint8_t CmdWndBuffCounter = 0;
+static uint8_t stack_counter         = 0;
 
-static char CmdWndBuffer[MAX_BUFFER_COMMANDS][MAX_COMMAND_LENGTH];
+static char cmd_stack[MAX_BUFFER_COMMANDS][MAX_COMMAND_BUFFER];
 
-void push_newWndCmd(char *cmd) {
+void push_stackCommand(char *cmd) {
 
-	if (!strlen(cmd)) return;
+	if ((*cmd) == '\0')  {
+		return;
+	}
 
-	char *buffer =
-			CmdWndBuffer[COMMAND(CmdWndBuffCounter)];
+	char *buffer = cmd_stack[COMMAND(stack_counter)];
 
 	strcpy(buffer, cmd);
 
-	CmdWndPtr = ++CmdWndBuffCounter;
+	stack_cmd = ++stack_counter;
 
-	if (WndCmds < MAX_BUFFER_COMMANDS) WndCmds++;
+	if (stack_commands < MAX_BUFFER_COMMANDS) {
+		stack_commands++;
+	}
 }
 
-bool get_wndCmd(char **cmd, cmd_stack_cursor_t cursor) {
+bool peak_stackCommand(char *cmd, cmd_stack_cursor_t cursor) {
 
-	if (!(*cmd) || !WndCmds) return false;
+	if ((cmd == NULL) || (stack_commands == 0)) {
+		return false; 
+	}
 
 	switch(cursor) {
 
-		case CWND_NEXT_COMMAND: {
+		case COMMAND_STACK_NEXT: {
 
-			if (!(CmdWndPtr ^ CmdWndBuffCounter) |
-					!(CmdWndPtr ^ (CmdWndBuffCounter - 1)))
+			if (!(stack_cmd ^ stack_counter) |
+					!(stack_cmd ^ (stack_counter - 1)))
 				return false;
 
-			CmdWndPtr++;
+			stack_cmd++;
 
 		} break;
 
-		case CWND_PREV_COMMAND: {
+		case COMMAND_STACK_PREV: {
 
-			if (!(CmdWndPtr ^ (CmdWndBuffCounter - WndCmds)))
+			if (!(stack_cmd ^ (stack_counter - stack_commands)))
 				return false;
 
-			CmdWndPtr--;
+			stack_cmd--;
 
 		} break;
+
 		default: return false;
 	}
 
-	char *buffer =
-			CmdWndBuffer[COMMAND(CmdWndPtr)];
+	char *buffer = cmd_stack[COMMAND(stack_cmd)];
 
-	strcpy(*cmd, buffer);
-
+	strcpy(cmd, buffer);
 	return true;
 }

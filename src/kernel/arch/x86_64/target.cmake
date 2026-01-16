@@ -3,7 +3,8 @@ project(rpv-x86_64-kernel LANGUAGES C)
 include(qemu-x86_64-simul)
 include(kernel-x86_64-iso)
 
-include(gcc-x86_64-elf-utils)
+# use fatfs as files I/O backend
+include(./arch/fatfs/fatfs.cmake)
 
 # x86_64 system platform
 add_subdirectory(./arch/x86_64/sys)
@@ -15,7 +16,7 @@ target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_X86_64_C_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/arch/x86_64)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap)
+target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap fatfs)
 
 target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                         -nostartfiles
@@ -25,6 +26,5 @@ target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                         -T${CMAKE_CURRENT_SOURCE_DIR}/scripts/kernel-x86_64-linker.ld
                                         -Wl,-Map,$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map)
 
-elf_dump(${PROJECT_NAME})
 kernel_iso(${PROJECT_NAME})
 qemu_simul(${PROJECT_NAME})

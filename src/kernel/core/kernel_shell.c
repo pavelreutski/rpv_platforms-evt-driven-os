@@ -6,17 +6,18 @@
 
 #include "fat.h"
 #include "shell.h"
+#include "prompt.h"
 #include "events.h"
+#include "monitor.h"
 
 #include "kernel.h"
 #include "kernel_fio.h"
 #include "kernel_stdio.h"
 
-#include "private/command.h"
-#include "private/shell_cmd.h"
+#include "kernel_conf.h"
 
-#define MAX_COMMAND_ARGS						 (10)
-#define MAX_COMMAND_BUFFER                       (255)
+#include "private/command.h"
+#include "private/command_stack.h"
 
 // ---- Messages
 
@@ -36,10 +37,10 @@ static uint8_t cmd_length                         = 0;
 
 // private internal calls
 
-static void display_cmdPrompt(void);
-static void fetch_wndCmd(uint8_t direction);
-
 static uint8_t exec_command(void);
+
+static void display_prompt(void);
+static void display_stackCommand(uint8_t direction);
 
 static void onProc_exit(evt_data_t* evtData);
 static void parse_cmdArgs(char* input, int length, char **argv, int *argc);
@@ -50,12 +51,6 @@ extern command_t __end_cmd_table[];
 // never returns
 
 void _shell_start() {
-
-	memset(cmd_buffer, 0, sizeof(cmd_buffer));
-
-	/// Self event subscriptions
-
-	_kernel_subEvt(0xff, onProc_exit);
 	
 	_kernel_outLn();
 	_kernel_outTab();
@@ -70,8 +65,12 @@ void _shell_start() {
 	_kernel_outLn();
 	_kernel_outLn();
 
-	_kernel_fio();
-	display_cmdPrompt();
+	// subscribe on process exit event
+	_kernel_subEvt(0xff, onProc_exit);
+
+	display_prompt();
+
+	memset(cmd_buffer, 0, sizeof(cmd_buffer));
 
 	while(true) {
 
@@ -82,10 +81,10 @@ void _shell_start() {
 
 			// Handle scan codes for the control keys e.g. arrow keys
 
-			case 0x75: // Arrow UP
-				fetch_wndCmd(CWND_PREV_COMMAND); break;
-			case 0x72:// Arrow DOWN
-				fetch_wndCmd(CWND_NEXT_COMMAND); break;
+			case 0x75: // arrow UP
+				display_stackCommand(COMMAND_STACK_PREV); break;
+			case 0x72:// arrow DOWN
+				display_stackCommand(COMMAND_STACK_NEXT); break;
 			default: {
 
 				// Handle ASCII code
@@ -105,8 +104,8 @@ void _shell_start() {
 
 						// make command being in ASCIIZ format (NULL terminated)
 						cmd_buffer[cmd_length] = 0;
-
-						push_newWndCmd(cmd_buffer);
+						
+						push_stackCommand(cmd_buffer);
 
 						_kernel_outLn();
 						uint8_t r_code = exec_command(); // try execute currently typed command
@@ -114,7 +113,7 @@ void _shell_start() {
 						cmd_length ^= cmd_length;
 
 						if (r_code ^ EXEC_EXTERNAL) // if anything apart from the external command execution -> display the command line prompt
-							display_cmdPrompt();
+							display_prompt();
 
 					} break;
 
@@ -139,7 +138,7 @@ static void onProc_exit(evt_data_t* evtData) {
 	(void) evtData;
 
 	_kernel_outString(PROG_PROCESS_DONE_MSG);
-	display_cmdPrompt();
+	display_prompt();
 }
 
 static void parse_cmdArgs(char* input, int length, char **argv, int *argc) {		
@@ -214,27 +213,18 @@ static uint8_t exec_command(void) {
 	return NO_EXEC;
 }
 
-static void display_cmdPrompt(void) {
+static void display_prompt(void) {
 
-	char s_prompt[256] = { "> " };
-	char cdrive = _kernel_cdrive();
+	char s_prompt[MAX_COMMAND_BUFFER + 1];
 
-	if (cdrive != '\0') {
-
-		fat_getcwd(s_prompt);
-
-		if (*s_prompt == cdrive) {
-			strcat(s_prompt, ">");
-		}
-	}
-
+	_shell_prompt(s_prompt, MAX_COMMAND_BUFFER);
 	_kernel_outString(s_prompt);
 }
 
-static void fetch_wndCmd(uint8_t direction) {
+static void display_stackCommand(uint8_t direction) {
 
 	char *cmd = cmd_buffer;
-	if (!get_wndCmd(&cmd, direction)) { 
+	if (!peak_stackCommand(cmd, direction)) { 
 		return;
 	}
 

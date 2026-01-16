@@ -12,9 +12,12 @@ x86_64-debug:
 
 # Build: Microchip AVR target
 
-microchip-avr:
+microchip_avr-debug:
 	cmake --preset microchip_avr-debug
 	cmake --build --preset microchip_avr-debug
+
+microchip_avr-prog: microchip_avr-debug
+	cmake --build --preset microchip_avr-debug --target program_arduino_mcu
 
 # Build and generate kernel ISO
 x86_64-iso: x86_64-debug
