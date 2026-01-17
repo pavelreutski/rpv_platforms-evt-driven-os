@@ -189,6 +189,10 @@ SECTIONS
     KEEP(*(.cmd_table))
     __end_cmd_table = .;
 
+    __svc_table = .;
+    KEEP(*(.service_table))
+    __end_svc_table = .;
+
     . = ALIGN(2);
      _edata = . ;
      PROVIDE (__data_end = .) ;

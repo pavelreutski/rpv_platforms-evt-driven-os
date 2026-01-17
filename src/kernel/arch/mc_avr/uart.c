@@ -5,12 +5,15 @@
 
 #include <util/atomic.h>
 
-#include "events.h"
-#include "kernel.h"
+#define UART_RX_RING_SIZE					(8)
 
 #define UART_BAUD_RATE                      (115200ul)
-
 #define UBRR_VALUE							((F_CPU / (UART_BAUD_RATE * 8ul)) - 1)
+
+static volatile uint8_t rx_tail             = 0;
+static volatile uint8_t rx_head             = 0;
+
+static volatile uint8_t rx_ring[UART_RX_RING_SIZE];
 
 static void uart_onRxCompleteISR(void);
 
@@ -19,6 +22,9 @@ ISR(USART_RX_vect) {
 }
 
 void _uart_start() {
+
+	rx_head =
+		rx_tail = 0;
 
     // double speed
 	UCSR0A |= (1 << U2X0);
@@ -35,19 +41,23 @@ void _uart_start() {
 }
 
 char _uart_read() {
-		
-	char c = 0;
-	while (!(UCSR0A & (1 << RXC0))) {
-				
-		if (UCSR0A & (1 << FE0) ||
-		     UCSR0A & (1 << DOR0)) {
-				 
-				 c = UDR0;
-				 return -1;
-			 }
-	}
 	
-	c = UDR0;
+	char c;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+
+		if (rx_head == rx_tail) {
+			return '\0';
+		}
+
+		c = rx_ring[rx_head];
+		
+		rx_head++;
+		
+		if (rx_head == UART_RX_RING_SIZE) {
+			rx_head = 0;
+		}
+	}
+
 	return c;
 }
 
@@ -65,7 +75,21 @@ static void uart_onRxCompleteISR() {
 	if ((status & ((1 << FE0) | (1 << DOR0)))) { // UART rx error on a line
 		return; // UART rx not accepted due to upper reasons
 	}
+
+	uint8_t next_tail = rx_tail + 1;
+
+	if (next_tail == UART_RX_RING_SIZE) {
+		next_tail = 0;
+	}
+
+	if (next_tail == rx_head) {
+		
+		rx_head++;
+		if (rx_head == UART_RX_RING_SIZE) {
+			rx_head = 0;
+		}
+	}
     
-	console_key_t key = { .code = c, .scan_code = 0 };
-	_kernel_pubEvt(EVT_USERCON_KEY, (evt_data_t *) &key);
+	rx_ring[rx_tail] = c;
+	rx_tail = next_tail;
 }

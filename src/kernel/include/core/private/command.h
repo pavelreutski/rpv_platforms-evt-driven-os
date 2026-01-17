@@ -12,7 +12,7 @@ enum {
 struct command_s {
 
     const char* text;
-    uint8_t (*handler)(char const* data, const int argc, const char **argv);
+    uint8_t (*const handler)(char const* data, const int argc, const char **argv);
 };
 
 typedef struct command_s command_t;

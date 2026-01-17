@@ -10,6 +10,8 @@
 
 #include "kernel_svc.h"
 
+#include "private/service.h"
+
 #define USER_EVENTS_POOL               (50)
 #define MAX_EVENTS                     (USER_EVENTS_POOL * 2)
 
@@ -85,6 +87,9 @@ static void unsubscribe_proc(void);
 static void exec_evts(void);
 static void enque_evt(uint8_t evtId, evt_data_t* evtData);
 
+extern service_t __svc_table[];
+extern service_t __end_svc_table[];
+
 void _kernel_pubEvt(uint8_t id, evt_data_t* data) {
 
 	if ((rt_proc != NULL) &&
@@ -128,6 +133,11 @@ void _kernel_svchost() {
 }
 
 void _kernel_svcPipeline() {
+
+	for (service_t *service = (service_t *) &__svc_table; 
+			service != (service_t *) &__end_svc_table; service++) {
+		service -> svc_main();
+	}
 }
 
 // ------------------------------------------ kexec -------------------------------------------------------------
