@@ -37,12 +37,21 @@ SECTIONS {
         *(.bss*)
     } :data
 
-    /* ==== commands table ======= */
+    /* ======= commands table ======= */
 
-    .cmd_table :
+    .cmd_table : ALIGN(16)
     {
         __cmd_table = .;
         KEEP(*(.cmd_table))
         __end_cmd_table = .;
     } :data
+
+    /* ======= services table ======== */
+
+    .svc_table : ALIGN(16)
+    {
+        __svc_table = .;
+        KEEP(*(.svc_table))
+        __end_svc_table = .;
+    }
 }

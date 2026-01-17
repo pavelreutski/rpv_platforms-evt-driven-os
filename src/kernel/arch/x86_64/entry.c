@@ -1,7 +1,7 @@
 #include "shell.h"
 
-#include "kernel_svc.h"
 #include "kernel_fio.h"
+#include "kernel_svchost.h"
 
 #include "kernel_stdio.h"
 

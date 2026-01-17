@@ -8,7 +8,8 @@
 #include "kernel_exec.h"
 #include "kernel_signal.h"
 
-#include "kernel_svc.h"
+#include "kernel_sevice.h"
+#include "kernel_svchost.h"
 
 #include "private/service.h"
 
@@ -130,6 +131,30 @@ void _kernel_pipeline() {
 // ------------------------------------------ kenel svc -----------------------------------------------------------
 
 void _kernel_svchost() {
+}
+
+void *_kernel_service(void const* svc, char const** svc_name) {
+	
+	if (svc_name == NULL) {
+		return NULL;
+	}
+
+	service_t *prev_svc = (service_t *) svc;
+	
+	service_t *svc_table = (service_t *) &__svc_table;
+	service_t *end_svc_table = (service_t *) &__end_svc_table;
+
+	service_t *next_svc = 
+		(prev_svc == NULL) ? svc_table : (++prev_svc);
+
+	if (next_svc == end_svc_table || 
+			(next_svc < svc_table || next_svc > end_svc_table)) {
+		return NULL;
+	}
+
+	*svc_name = next_svc -> s_name;
+
+	return next_svc;
 }
 
 void _kernel_svcPipeline() {

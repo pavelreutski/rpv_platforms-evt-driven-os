@@ -2,8 +2,8 @@
 
 #include "shell.h"
 
-#include "kernel_svc.h"
 #include "kernel_stdio.h"
+#include "kernel_svchost.h"
 
 int main(void) {
 
