@@ -3,8 +3,9 @@
 #include <string.h>
 
 #include "disk.h"
-#include "kernel_stdio.h"
+
 #include "kernel_jrnl.h"
+#include "kernel_stdio.h"
 
 #define IDE_DEV_BUSES               (2)
 #define IDE_BUS_DEVICES             (2)

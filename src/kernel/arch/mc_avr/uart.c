@@ -63,7 +63,7 @@ char _uart_read() {
 
 void _uart_write(const char b) {
 
-	while (!(UCSR0A & (1 << UDRE0))) {} // wait for data register being empty	
+	while (!(UCSR0A & (1 << UDRE0))) { } // wait for data register being empty	
 	UDR0 = b;
 }
 

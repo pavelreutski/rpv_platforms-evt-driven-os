@@ -1,17 +1,18 @@
 #include "disk.h"
+#include "command.h"
+
 #include "kernel_stdio.h"
 
-#include "private/command.h"
+static uint8_t onDisk_info(char const* input, const int argc, const char **argv);
 
-static uint8_t onDisk_info(char const* data, const int argc, const char **argv);
+_SHELL_COMMAND(disks, onDisk_info);
 
-_KERNEL_SHELL_COMMAND(disks, onDisk_info);
+static uint8_t onDisk_info(char const* input, const int argc, const char **argv) {
 
-static uint8_t onDisk_info(char const* data, const int argc, const char **argv) {
-
-    (void) data;
     (void) argc;
     (void) argv;
+
+	(void) input;
 
 	size_t n_disks = get_disks();
 

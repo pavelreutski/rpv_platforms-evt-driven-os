@@ -1,13 +1,13 @@
+#include "command.h"
 #include "kernel_fsh.h"
-#include "private/command.h"
 
-static uint8_t onDiskDir_display(char const* data, const int argc, const char **argv);
+static uint8_t onDiskDir_display(char const* input, const int argc, const char **argv);
 
-_KERNEL_SHELL_COMMAND(dir, onDiskDir_display);
+_SHELL_COMMAND(dir, onDiskDir_display);
 
-static uint8_t onDiskDir_display(char const* data, const int argc, const char **argv) {
+static uint8_t onDiskDir_display(char const* input, const int argc, const char **argv) {
 
-	(void) data;
+	(void) input;
 	
 	_kernel_ls(argc, (const char **) argv);
 	return EXEC_BUILT_IN;

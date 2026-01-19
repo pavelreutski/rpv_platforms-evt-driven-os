@@ -45,7 +45,6 @@ target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_CORE_C_SOURCES}
 
 target_include_directories(${PROJECT_NAME} PUBLIC ./include
                                                   ./include/core
-                                                  ./include/services
                                                   ${KERNEL_AUTOGEN_DIR})
 
 elf_dump(${PROJECT_NAME})

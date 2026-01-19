@@ -17,6 +17,6 @@ struct command_s {
 
 typedef struct command_s command_t;
 
-#define _KERNEL_SHELL_COMMAND(name, callback) \
+#define _SHELL_COMMAND(name, callback) \
     __attribute__((used, section(".cmd_table"))) \
     static const command_t name = { #name, callback }

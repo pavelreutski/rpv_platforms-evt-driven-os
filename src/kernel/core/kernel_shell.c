@@ -9,6 +9,7 @@
 #include "prompt.h"
 #include "events.h"
 #include "monitor.h"
+#include "command.h"
 
 #include "kernel.h"
 #include "kernel_fio.h"
@@ -16,7 +17,6 @@
 
 #include "kernel_conf.h"
 
-#include "private/command.h"
 #include "private/command_stack.h"
 
 // ---- Messages

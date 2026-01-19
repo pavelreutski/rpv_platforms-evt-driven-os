@@ -1,15 +1,15 @@
+#include "command.h"
 #include "kernel_exec.h"
 
 #include "utils/type.h"
-#include "private/command.h"
 
-static uint8_t onType_exec(char const* data, const int argc, const char **argv);
+static uint8_t onType_exec(char const* input, const int argc, const char **argv);
 
-_KERNEL_SHELL_COMMAND(type, onType_exec);
+_SHELL_COMMAND(type, onType_exec);
 
-static uint8_t onType_exec(char const* data, const int argc, const char **argv) {
+static uint8_t onType_exec(char const* input, const int argc, const char **argv) {
 
-    (void) data;
+    (void) input;
 
 	_kernel_exec_f(type_m, argc, argv);
 	return EXEC_EXTERNAL;

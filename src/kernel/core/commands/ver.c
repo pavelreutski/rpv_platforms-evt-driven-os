@@ -1,15 +1,16 @@
 #include "version.h"
+#include "command.h"
 
 #include "kernel_stdio.h"
-#include "private/command.h"
 
-static uint8_t onVer_display(char const* data, const int argc, const char **argv);
+static uint8_t onVer_display(char const* input, const int argc, const char **argv);
 
-_KERNEL_SHELL_COMMAND(ver, onVer_display);
+_SHELL_COMMAND(ver, onVer_display);
 
-static uint8_t onVer_display(char const* data, const int argc, const char **argv) {
+static uint8_t onVer_display(char const* input, const int argc, const char **argv) {
 
-	(void) data;
+	(void) input;
+
 	(void) argc;
     (void) argv;
 

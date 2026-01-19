@@ -8,6 +8,6 @@ struct service_s {
 
 typedef struct service_s service_t;
 
-#define _KERNEL_SERVICE(name, service_main) \
+#define _SERVICE(name, service_main) \
     __attribute__((used, section(".service_table"))) \
     static const service_t name = { #name, service_main }

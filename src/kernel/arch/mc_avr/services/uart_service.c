@@ -2,14 +2,14 @@
 
 #include "uart.h"
 #include "events.h"
-#include "kernel.h"
 
-#include "private/service.h"
+#include "kernel.h"
+#include "service.h"
 
 static void uart_service(void);
 static inline bool is_charValid(char c);
 
-_KERNEL_SERVICE(uart_svc, uart_service);
+_SERVICE(uart_svc, uart_service);
 
 static void uart_service(void) {
 

@@ -1,7 +1,9 @@
 #include <string.h>
 
 #include "fat.h"
+#include "console.h"
 #include "monitor.h"
+
 #include "kernel_stdio.h"
 
 #include "utils/type.h"
@@ -45,6 +47,8 @@ int type_m(const int argc, const char **argv) {
         switch(view_kind) {
 
             case HEX_VIEW: {
+                
+                con_clear();
                 hex_monitor(buffer, b_read);
             } break;
 

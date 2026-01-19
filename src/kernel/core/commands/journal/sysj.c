@@ -1,14 +1,13 @@
 #include "monitor.h"
 #include "console.h"
+#include "command.h"
 
 #include "kernel_jrnl.h"
 #include "kernel_stdio.h"
 
-#include "private/command.h"
-
 static uint8_t onSysJournal_display(char const* data, const int argc, const char **argv);
 
-_KERNEL_SHELL_COMMAND(sysj, onSysJournal_display);
+_SHELL_COMMAND(sysj, onSysJournal_display);
 
 static uint8_t onSysJournal_display(char const* data, const int argc, const char **argv) {
 

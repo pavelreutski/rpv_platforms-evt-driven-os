@@ -581,7 +581,7 @@ ide_ata_spec_delay:
                 push    rdx
                 
                 add     dx, 0x206
-                mov     cx, 4
+                mov     rcx, 4
         .ide_delay_loop:
 
                 in      al, dx

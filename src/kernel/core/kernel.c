@@ -4,14 +4,13 @@
 #include <stdint.h>
 #include <limits.h>
 
+#include "service.h"
+
 #include "kernel.h"
 #include "kernel_exec.h"
 #include "kernel_signal.h"
 
 #include "kernel_sevice.h"
-#include "kernel_svchost.h"
-
-#include "private/service.h"
 
 #define USER_EVENTS_POOL               (50)
 #define MAX_EVENTS                     (USER_EVENTS_POOL * 2)
@@ -25,7 +24,6 @@ struct evt_s {
 
 	uint8_t evtId;
 	evt_data_t evtData;
-
 };
 
 struct evt_sub_token_s {
@@ -85,6 +83,7 @@ static void subscribe_evt(uint8_t evtId, evt_subscriber_t sub);
 static void run_proc(void);
 static void unsubscribe_proc(void);
 
+static void exec_svcs(void);
 static void exec_evts(void);
 static void enque_evt(uint8_t evtId, evt_data_t* evtData);
 
@@ -112,8 +111,8 @@ void _kernel_subEvt(uint8_t id, evt_subscriber_t subscriber) {
 
 void _kernel_pipeline() {
 
-	_kernel_svcPipeline(); // execute services pipeline
-	exec_evts();           // execute events (subscribers)	
+	exec_svcs(); // execute services (can publish events)
+	exec_evts(); // execute events (subscribers)	
 	
 	if (proc_exec == 0) {  // if a process exec is requested
 		return;
@@ -130,10 +129,7 @@ void _kernel_pipeline() {
 
 // ------------------------------------------ kenel svc -----------------------------------------------------------
 
-void _kernel_svchost() {
-}
-
-void *_kernel_service(void const* svc, char const** svc_name) {
+void const* _kernel_service(void const* svc, char const** svc_name) {
 	
 	if (svc_name == NULL) {
 		return NULL;
@@ -147,22 +143,14 @@ void *_kernel_service(void const* svc, char const** svc_name) {
 	service_t *next_svc = 
 		(prev_svc == NULL) ? svc_table : (++prev_svc);
 
-	if (next_svc == end_svc_table || 
-			(next_svc < svc_table || next_svc > end_svc_table)) {
+	if ((next_svc == end_svc_table) || 
+			((next_svc < svc_table) || (next_svc > end_svc_table))) {
 		return NULL;
 	}
 
 	*svc_name = next_svc -> s_name;
 
 	return next_svc;
-}
-
-void _kernel_svcPipeline() {
-
-	for (service_t *service = (service_t *) &__svc_table; 
-			service != (service_t *) &__end_svc_table; service++) {
-		service -> svc_main();
-	}
 }
 
 // ------------------------------------------ kexec -------------------------------------------------------------
@@ -321,6 +309,14 @@ static sigset_t* context_flagMask(void) {
 		&(rt_proc -> flagMask) : &kernel_flagMask;
 }
 
+static __attribute__((noinline)) void exec_svcs(void) {
+
+	for (service_t *service = (service_t *) &__svc_table; 
+			service != (service_t *) &__end_svc_table; service++) {
+		service -> svc_main();
+	}
+}
+
 static __attribute__((noinline)) void exec_evts(void) {
 
 	if (free_events == MAX_QUEUE_EVENTS) {
@@ -347,8 +343,9 @@ static __attribute__((noinline)) void exec_evts(void) {
 		for (i = 0, token = evt_tokens; 
 				i < MAX_EVT_SUBSCRIBERS; i++, token++) {
 
-			if (token -> evt_id == recv_evtId) {
-				(token -> evt_sub)(&(recv_evt -> evtData));				
+			if ((token -> evt_sub != NULL) && 
+					(token -> evt_id == recv_evtId)) {
+						(token -> evt_sub)(&(recv_evt -> evtData));				
 			}
 		}
 

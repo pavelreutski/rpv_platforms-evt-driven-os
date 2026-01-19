@@ -1,13 +1,13 @@
 #include <stdint.h>
 
+#include "command.h"
+
 #include "kernel_stdio.h"
 #include "kernel_sevice.h"
 
-#include "private/command.h"
-
 static uint8_t onSvc_command(char const* input, const int argc, const char **argv);
 
-_KERNEL_SHELL_COMMAND(svc, onSvc_command);
+_SHELL_COMMAND(svc, onSvc_command);
 
 uint8_t onSvc_command(char const* input, const int argc, const char **argv) {
     
@@ -18,7 +18,7 @@ uint8_t onSvc_command(char const* input, const int argc, const char **argv) {
 
     int svc_n = 0;
 
-    void *svc = NULL;
+    void const* svc = NULL;
     char const* svc_name = NULL;
 
     while ((svc = _kernel_service(svc, &svc_name)) != NULL) {
