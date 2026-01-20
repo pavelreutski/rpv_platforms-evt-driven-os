@@ -13,5 +13,5 @@ void _shell_prompt(char *prompt, const size_t p_len) {
     *(s++) = '>';
     *(s++) = ' ';
 
-    *s = 0;
+    *s = '\0';
 }

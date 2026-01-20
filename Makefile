@@ -19,6 +19,12 @@ microchip_avr-debug:
 microchip_avr-prog: microchip_avr-debug
 	cmake --build --preset microchip_avr-debug --target program_arduino_mcu
 
+# Build: Microblaze target
+
+microblaze_le-debug:
+	cmake --preset microblaze_le-debug
+	cmake --build --preset microblaze_le-debug
+
 # Build and generate kernel ISO
 x86_64-iso: x86_64-debug
 	cmake --build --preset x86_64-debug --target iso

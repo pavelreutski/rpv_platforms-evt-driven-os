@@ -31,10 +31,20 @@
             "cacheVariables": {
                 "KERNEL_TARGET" : "microchip_avr",
                 "CMAKE_BUILD_TYPE" : "Debug" }
+        },
+        {
+            "inherits": "base",
+            "name": "microblaze_le-debug",
+            "displayName": "Microblaze kernel debug build",
+            "toolchainFile": "${sourceDir}/tools/cmake/gcc-microblaze-toolchain.cmake",
+            "cacheVariables": {
+                "KERNEL_TARGET": "microblaze_le",
+                "CMAKE_BUILD_TYPE" : "Debug" }
         }
     ],
     "buildPresets": [
         { "name": "x86_64-debug", "configurePreset": "x86_64-debug" },
-        { "name": "microchip_avr-debug", "configurePreset": "microchip_avr-debug" }
+        { "name": "microchip_avr-debug", "configurePreset": "microchip_avr-debug" },
+        { "name": "microblaze_le-debug", "configurePreset": "microblaze_le-debug" }
     ]
 }

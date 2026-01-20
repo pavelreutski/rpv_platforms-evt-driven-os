@@ -3,16 +3,16 @@ cmake_minimum_required(VERSION 3.20.0)
 include(gcc-elf-utils)
 
 # set(KERNEL_TARGET "x86_64" CACHE STRING "kernel target hardware architecture")
-set_property(CACHE KERNEL_TARGET PROPERTY STRINGS "x86_64" "stm32" "microchip_avr")
+set_property(CACHE KERNEL_TARGET PROPERTY STRINGS "x86_64" "stm32" "microchip_avr" "microblaze_le")
 
 include(./core/kernel.cmake)
 
 if(KERNEL_TARGET STREQUAL "x86_64")
-
     include(./arch/x86_64/target.cmake)
 elseif(KERNEL_TARGET STREQUAL "microchip_avr")
-
     include(./arch/mc_avr/target.cmake)
+elseif(KERNEL_TARGET STREQUAL "microblaze_le")
+    include(./arch/mb_le/target.cmake)
 else()
 
     get_property(KERNEL_TARGETS CACHE KERNEL_TARGET PROPERTY STRINGS)
