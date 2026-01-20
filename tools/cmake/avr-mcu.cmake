@@ -10,9 +10,12 @@ set(MCU_MODEL  atmega328p)
 set(MCU_UPLOADTOOL_PART m328p)
 
 add_link_options(-mmcu=${MCU_MODEL})
-add_compile_options(-mmcu=${MCU_MODEL} -O2 -g -gdwarf-4 
-                    -fdata-sections -ffunction-sections 
+add_compile_options(-mmcu=${MCU_MODEL} -O2 -g -gdwarf-4
+                    -mcall-prologues
+                    -fdata-sections -ffunction-sections -fno-common
                     -Wl,--gc-sections
+                    -Wl,--strip-debug
+                    -Wl,-u,vfprintf -lprintf_min
  		            -fpack-struct -fshort-enums
 		            -Wall -Werror -Wextra
 		            -Wl,--start-group
