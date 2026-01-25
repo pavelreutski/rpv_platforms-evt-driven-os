@@ -4,6 +4,22 @@
 # Only handles copying the kernel and generating GRUB ISO.
 # Does NOT create run/debug targets.
 
+function(elf_mem_size ELF_TARGET)
+
+    if (NOT TARGET ${ELF_TARGET})
+        message(FATAL_ERROR "Kernel target '${ELF_TARGET}' does not exist.")
+    endif()
+
+    set(ELF_FILE $<TARGET_FILE:${ELF_TARGET}>)
+
+    add_custom_target(${ELF_TARGET}-elf-size ALL
+        COMMAND ${CMAKE_SIZE} ${ELF_FILE}
+        DEPENDS ${ELF_TARGET}
+        COMMENT "running elf size for ${ELF_TARGET}"
+    )
+
+endfunction()
+
 function(elf_dump ELF_TARGET)
 
     if(NOT TARGET ${ELF_TARGET})

@@ -18,21 +18,21 @@ MEMORY
 
 SECTIONS
 {
-.vectors.reset 0x0 : {
+.vectors.reset ORIGIN(mig_7series_0_memaddr) : {
    KEEP (*(.vectors.reset))
-} 
+} > mig_7series_0_memaddr
 
-.vectors.sw_exception 0x8 : {
+.vectors.sw_exception ORIGIN(mig_7series_0_memaddr) + 0x8 : {
    KEEP (*(.vectors.sw_exception))
-} 
+} > mig_7series_0_memaddr
 
-.vectors.interrupt 0x10 : {
+.vectors.interrupt ORIGIN(mig_7series_0_memaddr) + 0x10 : {
    KEEP (*(.vectors.interrupt))
-} 
+} > mig_7series_0_memaddr
 
-.vectors.hw_exception 0x20 : {
+.vectors.hw_exception ORIGIN(mig_7series_0_memaddr) + 0x20 : {
    KEEP (*(.vectors.hw_exception))
-} 
+} > mig_7series_0_memaddr
 
 .text : {
    *(.text)
@@ -114,7 +114,7 @@ SECTIONS
    /* Services section */
 
     __svc_table = .;
-    KEEP(*(.svc_table))
+    KEEP(*(.service_table))
     __end_svc_table = .;
 
    __data_end = .;

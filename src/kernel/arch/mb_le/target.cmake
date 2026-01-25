@@ -15,3 +15,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE ./include/arch/mb_le)
 
 target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Map,$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map
                                             -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/scripts/kernel-mb_le-linker.ld)
+
+elf_mem_size(${PROJECT_NAME})

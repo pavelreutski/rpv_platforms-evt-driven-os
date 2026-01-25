@@ -1,8 +1,30 @@
 #include "shell.h"
 
+#include "sys/xintc.h"
+#include "sys/xuart.h"
+
 #include "kernel_stdio.h"
 
+extern void _mb_icache_enable(void);
+extern void _mb_dcache_enable(void);
+
+extern void _mb_exceptions_enable(void);
+extern void _mb_interrupts_enable(void);
+
 int main(void) {
+
+    /* system platform initialization */
+
+    _mb_icache_enable();
+    _mb_dcache_enable();
+
+    _xuartlite_start();
+    _xintc_start();
+
+    _mb_exceptions_enable();
+    _mb_interrupts_enable();
+
+    /* ------------------------------- */
 
     _kernel_stdio();
     _kernel_outString("Starting RPV (Co) Event Driven OS (microblaze build)...\n");

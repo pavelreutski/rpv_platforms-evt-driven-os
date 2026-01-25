@@ -1,20 +1,31 @@
+#include "tty.h"
 #include "console.h"
+
+#include "sys/xuart.h"
 
 size_t MAX_X = 0;
 size_t MAX_Y = 0;
 
-void set_con(void) { }
 void con_clear(void) { }
 
-void con_ln(void) { }
-void con_tab(void) { }
+void set_con(void) {
+    _xuartlite_start();
+}
+
+void con_ln(void) {
+    con_char('\n');
+}
+
+void con_tab(void) {
+    con_char('\t');
+}
 
 void con_char(const char code) {
-    (void) code;
+    tty_write(code);
 }
 
 void con_string(const char* str) {
-    (void) str;
+    tty_string(str);
 }
 
 size_t con_getx(void) {
