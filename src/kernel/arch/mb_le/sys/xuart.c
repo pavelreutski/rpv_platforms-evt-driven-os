@@ -144,27 +144,4 @@ static void onxUart0_irq(void) {
         xuart_status.reg = (XUART0 -> sr).reg;
 
     } while(xuart_status.rxfifo_valid);
-
-    /*while ((XUART0 -> sr.rxfifo_valid) ||
-            (XUART0 -> sr.rxfifo_full)) {
-        
-        volatile uint8_t c = 
-            (uint8_t) ((XUART0 -> rx_datafifo) & 0xFF);
-
-        uint8_t next_tail = (rx0_tail + 1);
-        if (next_tail == XUART_RX_BUFFER) {
-            next_tail = 0;
-        }
-
-        if (next_tail == rx0_head) {
-
-            rx0_head++;
-            if (rx0_head == XUART_RX_BUFFER) {
-                rx0_head = 0;
-            }
-        }
-
-        rx0_ring[rx0_tail] = c;
-        rx0_tail = next_tail;
-    }*/
 }
