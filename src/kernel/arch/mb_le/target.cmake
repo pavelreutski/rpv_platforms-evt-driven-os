@@ -1,14 +1,17 @@
 project(rpv-microblazele-kernel LANGUAGES C ASM)
 
-set(STORAGE_SUBSYS OFF)
-set(JOURNAL_SUBSYS OFF)
+set(STORAGE_SUBSYS ON)
+set(JOURNAL_SUBSYS ON)
+
+# use fatfs as files I/O backend
+include(./arch/fatfs/fatfs.cmake)
 
 file(GLOB KERNEL_MBLE_ASM_SOURCES CONFIGURE_DEPENDS ./arch/mb_le/*.S)
 file(GLOB_RECURSE KERNEL_MBLE_C_SOURCES CONFIGURE_DEPENDS ./arch/mb_le/*.c)
 
 add_executable(${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE c gcc)
+target_link_libraries(${PROJECT_NAME} PRIVATE c gcc fatfs)
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_MBLE_ASM_SOURCES} ${KERNEL_MBLE_C_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/arch/mb_le)

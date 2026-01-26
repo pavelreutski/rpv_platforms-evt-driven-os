@@ -112,11 +112,7 @@ void _xuartlite_write(const char c) {
 
 static void onxUart0_irq(void) {
 
-    xuartlite_status_t xuart_status = { 0 };
-
-    xuart_status.reg = (XUART0 -> sr).reg;
-
-    if (!xuart_status.rxfifo_valid) {
+    if (!(XUART0 -> sr.rxfifo_valid)) {
         return;
     }
 
@@ -141,7 +137,5 @@ static void onxUart0_irq(void) {
         rx0_ring[rx0_tail] = c;
         rx0_tail = next_tail;
 
-        xuart_status.reg = (XUART0 -> sr).reg;
-
-    } while(xuart_status.rxfifo_valid);
+    } while((XUART0-> sr.rxfifo_valid));
 }
