@@ -3,15 +3,14 @@
 #include "disk.h"
 #include "kernel_stdio.h"
 
-#include "sys/xcache.h"
 #include "sys/rsdcard.h"
 
 #define MAX_DISKS                   (1)
 #define MAX_BLOCK_SIZE              (512)
 
-#define DSK_IO_BUFFER               (0x80000000)
+#define DISK_IO_BUFFER              (0x80000000)
 
-static volatile void *io_buffer     = (void *) DSK_IO_BUFFER;
+static volatile void *io_buffer     = (void *) DISK_IO_BUFFER;
 
 void disk_io(void) {
 }
@@ -54,13 +53,12 @@ uint8_t read_disk(void *buffer, size_t did, size_t blck, size_t blocks) {
         return DISK_INVALID;
     }
 
-    if (!rsdcard_read((void *) io_buffer, blck, blocks)) {
+    if (!_rsdcard_read(io_buffer, blck, blocks)) {
         return DISK_IO_ERR;
     }
 
     size_t blck_s = (blocks * MAX_BLOCK_SIZE);
 
-    _xdcache_invalidate((void *) io_buffer, blck_s);
     memcpy(buffer, (const void *) io_buffer, blck_s);
 
     return DISK_IO_OK;
@@ -72,5 +70,8 @@ uint8_t write_disk(void const* buffer, size_t did, size_t blck, size_t blocks) {
         return DISK_INVALID;
     }
 
-    return rsdcard_write(buffer, blck, blocks) ? DISK_IO_OK : DISK_IO_ERR;
+    size_t blck_s = (blocks * MAX_BLOCK_SIZE);
+    memcpy((void *) io_buffer, buffer, blck_s);
+
+    return _rsdcard_write(io_buffer, blck, blocks) ? DISK_IO_OK : DISK_IO_ERR;
 }

@@ -6,6 +6,9 @@
 
 #define XDMA0                       ((xdirectdma_t *) XDMA0_BASE)
 
+#define XDMA0_MM2S                  ((xdirectdma_ch_t *) XDMA0_BASE)
+#define XDMA0_S2MM                  ((xdirectdma_ch_t *) (XDMA0_BASE + 0x30))
+
 #define XDMA_DATA_WIDTH             (32)
 #define XDMA_MAX_BTT_WIDTH          (14)
 
@@ -139,41 +142,31 @@ struct xsgdmadesc_s {
     volatile uint32_t app4;           /* 0x30 */
 };
 
+struct xdirectdma_ch_s {
+
+    volatile union xdmacr_u cr;     /* 0x00 + (ch_i * 0x30) */
+    volatile union xdmasr_u sr;     /* 0x04 + (ch_i * 0x30)*/
+
+    volatile uint32_t rsrv_0[4];    /* (0x08 - 0x14h) + (ch_i * 0x30) */
+
+    volatile struct {
+
+        uint32_t lsb;
+        uint32_t msb;
+    } m_addr;                       /* (0x18 - 0x1C) + (ch_i * 0x30) */
+
+    volatile uint32_t hole[2];      /* (0x20 - 0x24) + (ch_i * 0x30) */
+    volatile union xdma_length_u l; /* 0x28 + (ch_i * 0x30) */
+
+    volatile uint32_t rsrv_1;       /* 0x2C + (ch_i * 0x30) */
+};
+
 struct xdirectdma_s {
 
     /* MM2S */
-
-    volatile union xdmacr_u mm2s_cr;     /* 0x00 */
-    volatile union xdmasr_u mm2s_sr;     /* 0x04 */
-
-    volatile uint32_t mm2s_rsrv_0[4];    /* 0x08 - 0x14h */
-
-    volatile struct {
-
-        uint32_t lsb;
-        uint32_t msb;
-    } mm2s_sa;                           /* 0x18 - 0x1C */
-
-    volatile uint32_t mm2s_hole[2];      /* 0x20 - 0x24 */
-    volatile union xdma_length_u mm2s_l; /* 0x28 */
-
-    volatile uint32_t mm2s_rsrv_1;       /* 0x2C */
-
+    volatile struct xdirectdma_ch_s mm2s; /* 0x00 - 0x2F */
     /* S2MM */
-
-    volatile union xdmacr_u s2mm_cr;     /* 0x30 */
-    volatile union xdmasr_u s2mm_sr;     /* 0x34 */
-
-    volatile uint32_t s2mm_rsrv[4];      /* 0x38 - 0x44 */
-
-    volatile struct {
-
-        uint32_t lsb;
-        uint32_t msb;
-    } s2mm_da;                           /* 0x48 - 0x4C */
-    
-    volatile uint32_t s2mm_hole[2];      /* 0x50 - 0x54 */
-    volatile union xdma_length_u s2mm_l; /* 0x58 */
+    volatile struct xdirectdma_ch_s s2mm; /* 0x30 - 0x5B */
 };
 
 struct xsgdma_s {
@@ -222,19 +215,23 @@ typedef struct xsgdmadesc_s xsgdmadesc_t;
 /* DMA modes */
 
 typedef struct xsgdma_s xsgdma_t;
+
 typedef struct xdirectdma_s xdirectdma_t;
+typedef struct xdirectdma_ch_s xdirectdma_ch_t;
+
+static bool xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
 
 void _xdma_start(void) {
 
     /* reset both mm2s & s2mm engines */
 
-    (XDMA0 -> mm2s_cr).reset = true;
-    (XDMA0 -> s2mm_cr).reset = true;
+    (XDMA0 -> mm2s.cr).reset = true;
+    (XDMA0 -> s2mm.cr).reset = true;
 
     /* wait for reset done */
 
-    while((XDMA0 -> mm2s_cr).reset) { }
-    while((XDMA0 -> s2mm_cr).reset) { }
+    while((XDMA0 -> mm2s.cr).reset) { }
+    while((XDMA0 -> s2mm.cr).reset) { }
 }
 
 void _xdma_mm2s_sg(void) {
@@ -243,55 +240,44 @@ void _xdma_mm2s_sg(void) {
 void _xdma_s2mm_sg(void) {
 }
 
-bool _xdma_mm2s_simple(void const* addr, size_t len) {
-
-    /* Check transfer length */
-    if ((len == 0) || (len > XDMA_BTT_MAX)) {
-        return false;
-    }
+bool _xdma_mm2s_simple(volatile const uintptr_t addr, const size_t len) {
 
     /* Check if transfer is ongoing */
-    if (!(XDMA0 -> mm2s_sr.halted) &&
-            !(XDMA0 -> mm2s_sr.idle)) {
-        return false;
-    }
-    
-    const uint32_t sa_addr = (const uint32_t) addr;
-
-    /* Check memory address is aligned at DMA words boundary */
-    if (sa_addr & (XDMA_DATA_WIDTH - 1)) {
+    if (!(XDMA0 -> mm2s.sr.halted) &&
+            !(XDMA0 -> mm2s.sr.idle)) {
         return false;
     }
 
-    XDMA0 -> mm2s_sa.lsb = sa_addr;
-
-    XDMA0 -> mm2s_cr.rs = true;
-    XDMA0 -> mm2s_l.trans_len = (uint32_t) len;
-
-    return true;
+    return xdirectdma_trans(XDMA0_MM2S, addr, len);
 }
 
-bool _xdma_s2mm_simple(void const* addr, size_t len) {
+bool _xdma_s2mm_simple(volatile const uintptr_t addr, const size_t len) {
 
+    /* check if transfer is ongoing */
+    if (!(XDMA0 -> s2mm.sr.halted) &&
+            !(XDMA0 -> s2mm.sr.idle)) {
+        return false;
+    }
+
+    return xdirectdma_trans(XDMA0_S2MM, addr, len);
+}
+
+static bool xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t addr, const size_t len) {
+
+    /* check if transaction length doesnt exceed xdma data length register width */
     if ((len == 0) || (len > XDMA_BTT_MAX)) {
         return false;
     }
 
-    if (!(XDMA0 -> s2mm_sr.halted) &&
-            !(XDMA0 -> s2mm_sr.idle)) {
+    /* check memory address is aligned at DMA words boundary */
+    if (addr & (XDMA_DATA_WIDTH - 1)) {
         return false;
     }
 
-    const uint32_t da_addr = (const uint32_t) addr;
+    t_ch -> m_addr.lsb = addr;
 
-    if (da_addr & (XDMA_DATA_WIDTH - 1)) {
-        return false;
-    }
-
-    XDMA0 -> s2mm_da.lsb = da_addr;
-
-    XDMA0 -> s2mm_cr.rs = true;
-    XDMA0 -> s2mm_l.trans_len = (uint32_t) len;
+    t_ch -> cr.rs = true;
+    t_ch -> l.trans_len = len;
 
     return true;
 }

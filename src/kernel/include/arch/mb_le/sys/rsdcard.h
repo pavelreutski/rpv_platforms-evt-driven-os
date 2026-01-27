@@ -4,5 +4,5 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-bool rsdcard_read(void *mem, size_t sector, size_t count);
-bool rsdcard_write(void const* mem, size_t sector, size_t count);
+bool _rsdcard_read(volatile void *mem, size_t sector, const size_t count);
+bool _rsdcard_write(volatile void const* mem, size_t sector, const size_t count);
