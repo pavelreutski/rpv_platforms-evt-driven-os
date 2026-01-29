@@ -1,9 +1,15 @@
 #include <stdint.h>
+#include <string.h>
 
 #include "sys/xdma.h"
+#include "sys/xcache.h"
+
+#define XDMA_IO_BUFFER              (0x80000000)
 
 #define XDMA0_BASE                  (0x41E00000)
+#define XDMA1_BASE                  (0x41E10000)
 
+#define XDMA1                       ((xsgdma_t *) XDMA1_BASE)
 #define XDMA0                       ((xdirectdma_t *) XDMA0_BASE)
 
 #define XDMA0_MM2S                  ((xdirectdma_ch_t *) XDMA0_BASE)
@@ -13,6 +19,13 @@
 #define XDMA_MAX_BTT_WIDTH          (14)
 
 #define XDMA_BTT_MAX                ((1ul << XDMA_MAX_BTT_WIDTH) - 1)
+
+#define XDMA0_IO_BUFFER             (XDMA_IO_BUFFER)
+
+#define XDMA1_IO_BUFFER             (XDMA0_IO_BUFFER + (1ul << XDMA_MAX_BTT_WIDTH))
+#define XDMA1_IO_BD_RING            (XDMA1_IO_BUFFER + (1ul << XDMA_MAX_BTT_WIDTH))
+
+/* XDMA control register */
 
 union xdmacr_u {
 
@@ -34,6 +47,8 @@ union xdmacr_u {
         uint32_t irq_delay        : 8;  /* Bits 24–31 : R/W Interrupt delay timeout (0 = disabled, SG only) */
     };
 };
+
+/* XDMA status register */
 
 union xdmasr_u {
 
@@ -62,33 +77,7 @@ union xdmasr_u {
     };
 };
 
-union xdma_curdesc_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t reserved0_5 : 6;   /* Bits 0–5  : RO Reserved, always read as 0 */
-        uint32_t curdesc     : 26;  /* Bits 6–31 : R/W (RO when running)
-                                     * Current descriptor pointer.
-                                     * Must be written only when DMA is halted.
-                                     * Descriptor address must be 64-byte aligned. */
-    };
-};
-
-union xdma_taildesc_u {
-
-    uint32_t reg;
-
-    struct {
-        uint32_t reserved0_5 : 6;   /* Bits 0–5  : RO Reserved, always read as 0 */
-        uint32_t taildesc    : 26;  /* Bits 6–31 : R/W Tail descriptor pointer.
-                                     * Defines the pause point in the SG descriptor chain.
-                                     * Writing this register while DMA is not halted
-                                     * starts or restarts descriptor fetching.
-                                     * Descriptor address must be 64-byte aligned. */
-    };
-};
+/* XDIRECTDMA length register */
 
 union xdma_length_u {
 
@@ -100,6 +89,8 @@ union xdma_length_u {
         uint32_t reserved26_31 : 6;   /* Bits 26–31 : RO Reserved, always read as 0 */
     };
 };
+
+/* XSGDMA control register - used when miltichannel enabled */
 
 union xdma_sgctl_u {
 
@@ -114,7 +105,23 @@ union xdma_sgctl_u {
     };
 };
 
-/* scatter & gather descriptor */
+/* XSGDMA descriptor ptr register */
+
+struct xdma_desc_ptr_u {
+
+    struct {
+
+        uint32_t reserved0_5 : 6;   /* Bits 0–5  : RO Reserved, always read as 0 */
+        uint32_t addr        : 26;  /* Bits 6–31 : R/W (RO when running)
+                                     * Descriptor pointer lsb.
+                                     * Must be written only when DMA is halted.
+                                     * Descriptor address must be 64-byte aligned. */
+    } lsb;
+    
+    uint32_t msb;                   /* Descriptor pointer msb */
+};
+
+/* XSGDMA scatter & gather descriptor */
 
 struct xsgdmadesc_s {
 
@@ -132,15 +139,34 @@ struct xsgdmadesc_s {
     
     volatile uint32_t reserved[2];    /* 0x10 - 0x14 */
 
-    volatile uint32_t control;        /* 0x18 */
-    volatile uint32_t status;         /* 0x1C */
+    volatile struct {
+
+        uint32_t buffer_len : 26;
+        uint32_t tx_eof     : 1;
+        uint32_t tx_sof     : 1;
+        uint32_t reserved   : 4;
+    } control;                        /* 0x18 */
+
+    volatile struct {
+
+        uint32_t trans_len     : 26;
+        uint32_t reserved      : 2;
+        uint32_t dma_intErr    : 1;
+        uint32_t dma_intSlvErr : 1;
+        uint32_t dma_decErr    : 1;
+        uint32_t cmplt         : 1;
+    } status;                         /* 0x1C */
     
     volatile uint32_t app0;           /* 0x20 */
     volatile uint32_t app1;           /* 0x24 */
     volatile uint32_t app2;           /* 0x28 */
     volatile uint32_t app3;           /* 0x2C */
     volatile uint32_t app4;           /* 0x30 */
+
+    volatile uint32_t align[3];       /* 0x34 - 0x3f */
 };
+
+/* XDIRECTDMA channel */
 
 struct xdirectdma_ch_s {
 
@@ -161,6 +187,23 @@ struct xdirectdma_ch_s {
     volatile uint32_t rsrv_1;       /* 0x2C + (ch_i * 0x30) */
 };
 
+/* XSGDMA channel */
+
+struct xsgdma_ch_s {
+
+    volatile union xdmacr_u cr;               /* 0x00 */
+    volatile union xdmasr_u sr;               /* 0x04 */
+
+    volatile struct xdma_desc_ptr_u currdesc; /* 0x08 - 0x0F */
+    volatile struct xdma_desc_ptr_u taildesc; /* 0x10 - 0x17 */
+
+    volatile uint32_t mm2s_hole[5];           /* 0x18 - 0x28 */
+
+    volatile union xdma_sgctl_u sgctl;        /* 0x2C */
+};
+
+/* XDIRECTDMA memio instance */
+
 struct xdirectdma_s {
 
     /* MM2S */
@@ -169,57 +212,35 @@ struct xdirectdma_s {
     volatile struct xdirectdma_ch_s s2mm; /* 0x30 - 0x5B */
 };
 
+/* XSGDMA memio instance */
+
 struct xsgdma_s {
 
     /* MM2S */
-
-    volatile union xdmacr_u mm2s_cr;              /* 0x00 */
-    volatile union xdmasr_u mm2s_sr;              /* 0x04 */
-
-    volatile union xdma_curdesc_u mm2s_currdesc;  /* 0x08 */
-    volatile uint32_t mm2s_currdesc_msb;          /* 0x0C */
-
-    volatile union xdma_taildesc_u mm2s_taildesc; /* 0x10 */
-    volatile uint32_t mm2s_taildesc_msb;          /* 0x14 */
-
-    volatile uint32_t mm2s_hole[5];               /* 0x18 - 0x28 */
-
-    volatile union xdma_sgctl_u sgctl;            /* 0x2C */
-    
+    volatile struct xsgdma_ch_s mm2s; /* 0x00 - 0x2F */
     /* S2MM */
-
-    volatile union xdmacr_u s2mm_cr;              /* 0x30 */
-    volatile union xdmasr_u s2mm_sr;              /* 0x34 */
-
-    volatile union xdma_curdesc_u s2mm_currdesc;  /* 0x38 */
-    volatile uint32_t s2mm_currdesc_msb;          /* 0x3C */
-
-    volatile union xdma_taildesc_u s2mm_taildesc; /* 0x40 */
-    volatile uint32_t s2mm_taildesc_msb;          /* 0x44 */
+    volatile struct xsgdma_ch_s s2mm; /* 0x30 - 0x5B */
 };
 
-/* DMA registers */
+/* XDMA type definitions */
 
 typedef union xdmacr_u xdmacr_t;
 typedef union xdmasr_u xdmasr_t;
 
 typedef union xdma_sgctl_u xdma_sgctl_t;
 typedef union xdma_length_u xdma_length_t;
-typedef union xdma_curdesc_u xdma_curdes_t;
-typedef union xdma_taildesc_u xdma_taildesc_t;
-
-/* DMA scatter & gather descriptor */
+typedef struct xdma_desc_ptr_u xdma_desc_ptr_t;
 
 typedef struct xsgdmadesc_s xsgdmadesc_t;
 
-/* DMA modes */
-
 typedef struct xsgdma_s xsgdma_t;
+typedef struct xsgdma_ch_s xsgdma_ch_t;
 
 typedef struct xdirectdma_s xdirectdma_t;
 typedef struct xdirectdma_ch_s xdirectdma_ch_t;
 
-static bool xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
+// static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
+static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
 
 void _xdma_start(void) {
 
@@ -240,38 +261,51 @@ void _xdma_mm2s_sg(void) {
 void _xdma_s2mm_sg(void) {
 }
 
-bool _xdma_mm2s_simple(volatile const uintptr_t addr, const size_t len) {
+volatile void const* _xdma_mm2s_simple(void const* mem, const size_t len) {
 
     /* Check if transfer is ongoing */
     if (!(XDMA0 -> mm2s.sr.halted) &&
             !(XDMA0 -> mm2s.sr.idle)) {
-        return false;
+        return NULL;
     }
 
-    return xdirectdma_trans(XDMA0_MM2S, addr, len);
+    /* check if transaction length doesnt exceed xdma data length register width */
+    if ((mem == NULL) || (len == 0) || (len > XDMA_BTT_MAX)) {
+        return NULL;
+    }
+
+    uintptr_t sa_addr = XDMA0_IO_BUFFER;
+    uintptr_t mem_addr = (uintptr_t) mem;    
+
+    _xdcache_invalidate(mem_addr, len);
+
+    memcpy((void *) sa_addr, mem, len);
+    _xdcache_flush(sa_addr, len);
+
+    return (void *) xdirectdma_trans(XDMA0_MM2S, sa_addr, len);
 }
 
-bool _xdma_s2mm_simple(volatile const uintptr_t addr, const size_t len) {
+volatile void const* _xdma_s2mm_simple(const size_t len) {
 
     /* check if transfer is ongoing */
     if (!(XDMA0 -> s2mm.sr.halted) &&
             !(XDMA0 -> s2mm.sr.idle)) {
-        return false;
+        return NULL;
     }
-
-    return xdirectdma_trans(XDMA0_S2MM, addr, len);
-}
-
-static bool xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t addr, const size_t len) {
 
     /* check if transaction length doesnt exceed xdma data length register width */
     if ((len == 0) || (len > XDMA_BTT_MAX)) {
-        return false;
+        return NULL;
     }
+
+    return (void *) xdirectdma_trans(XDMA0_S2MM, XDMA0_IO_BUFFER, len);
+}
+
+static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t addr, const size_t len) {
 
     /* check memory address is aligned at DMA words boundary */
     if (addr & (XDMA_DATA_WIDTH - 1)) {
-        return false;
+        return 0;
     }
 
     t_ch -> m_addr.lsb = addr;
@@ -279,5 +313,9 @@ static bool xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uint
     t_ch -> cr.rs = true;
     t_ch -> l.trans_len = len;
 
-    return true;
+    return addr;
 }
+
+/*static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len) {
+    return false;
+}*/

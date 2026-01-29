@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "sys/xdma.h"
 #include "sys/xcache.h"
 #include "sys/rsdcard.h"
@@ -56,16 +58,18 @@ typedef struct rsdcard_s rsdcard_t;
 typedef union rsdcard_ctrl_u rsdcard_ctrl_t;
 typedef union rsdcard_status_u rsdcard_status_t;
 
-bool _rsdcard_read(volatile void *mem, size_t sector, const size_t count) {
+bool _rsdcard_read(void *mem, size_t sector, const size_t count) {
 
     if (!(RSDCARD -> sr.idle)) {
         return false;
     }
 
-    const uintptr_t m_addr = (const uintptr_t) mem;
+    volatile void const* io_buffer;
     const size_t m_len = (count * SDCARD_SECTOR_SIZE);
 
-    if (!_xdma_s2mm_simple(m_addr, m_len)) {
+    io_buffer = _xdma_s2mm_simple(m_len);
+
+    if (io_buffer == NULL) {
         return false;
     }
 
@@ -86,24 +90,22 @@ bool _rsdcard_read(volatile void *mem, size_t sector, const size_t count) {
     bool io_ok = !(RSDCARD -> sr.ioe);
 
     if (io_ok) {
-        _xdcache_invalidate(m_addr, m_len);
+        
+        _xdcache_invalidate((uintptr_t) io_buffer, m_len);
+        memcpy(mem, (void const*) io_buffer, m_len);
     }
 
     return io_ok;
 }
 
-bool _rsdcard_write(volatile void const* mem, size_t sector, const size_t count) {
+bool _rsdcard_write(void const* mem, size_t sector, const size_t count) {
 
     if (!(RSDCARD -> sr.idle)) {
         return false;
     }
 
-    const uintptr_t m_addr = (const uintptr_t) mem;
-    const size_t m_len = (count * SDCARD_SECTOR_SIZE);
-
-    _xdcache_flush(m_addr, m_len);
-
-    if (!_xdma_mm2s_simple(m_addr, m_len)) {
+    if (_xdma_mm2s_simple(mem, 
+            (count * SDCARD_SECTOR_SIZE)) == NULL) {
         return false;
     }
 
@@ -119,7 +121,7 @@ bool _rsdcard_write(volatile void const* mem, size_t sector, const size_t count)
     while ((RSDCARD -> sr.idle)) { }
     
     /* Wait for I/O completed */
-    while (!(RSDCARD ->sr.ioc)) { }
+    while (!(RSDCARD -> sr.ioc)) { }   
 
     return !(RSDCARD ->sr.ioe);
 }
