@@ -112,6 +112,21 @@ void fat_ls(char const* path, void const* ls_ctx,
     f_closedir(&dp);
 }
 
+size_t fat_fsize(int fd) {
+    
+    if ((fd < 0) || (fd >= MAX_OPEN_FILES)) {
+        return 0;
+    }
+
+    FIL *fp = (FIL *) open_files[fd];
+
+    if (fp == NULL) {
+        return 0;
+    }
+
+    return f_size(fp);
+}
+
 void fat_fclose(int fd) {
 
     if ((fd < 0) || (fd >= MAX_OPEN_FILES)) {

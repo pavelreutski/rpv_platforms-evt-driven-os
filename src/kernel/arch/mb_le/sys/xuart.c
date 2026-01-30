@@ -69,7 +69,7 @@ static volatile uint8_t rx0_head;
 
 static volatile uint8_t rx0_ring[XUART_RX_BUFFER];
 
-static void onxUart0_irq(void) __attribute__((fast_interrupt));
+static __attribute__((fast_interrupt)) void onxUart0_irq(void);
 
 void _xuartlite_start(void) {
 

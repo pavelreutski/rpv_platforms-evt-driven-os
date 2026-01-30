@@ -2,9 +2,14 @@
 #include <string.h>
 
 #include "sys/xdma.h"
+#include "sys/xintc.h"
 #include "sys/xcache.h"
 
+#include "kernel_signal.h"
+
 #define XDMA_IO_BUFFER              (0x80000000)
+
+#define XDMA1_IRQ                   (3)
 
 #define XDMA0_BASE                  (0x41E00000)
 #define XDMA1_BASE                  (0x41E10000)
@@ -239,6 +244,8 @@ typedef struct xsgdma_ch_s xsgdma_ch_t;
 typedef struct xdirectdma_s xdirectdma_t;
 typedef struct xdirectdma_ch_s xdirectdma_ch_t;
 
+static __attribute__((fast_interrupt)) void onxDMA1_irq(void);
+
 // static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
 static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
 
@@ -253,12 +260,8 @@ void _xdma_start(void) {
 
     while((XDMA0 -> mm2s.cr).reset) { }
     while((XDMA0 -> s2mm.cr).reset) { }
-}
 
-void _xdma_mm2s_sg(void) {
-}
-
-void _xdma_s2mm_sg(void) {
+    _xintc_enableIRQ(XDMA1_IRQ, onxDMA1_irq);
 }
 
 volatile void const* _xdma_mm2s_simple(void const* mem, const size_t len) {
@@ -301,6 +304,100 @@ volatile void const* _xdma_s2mm_simple(const size_t len) {
     return (void *) xdirectdma_trans(XDMA0_S2MM, XDMA0_IO_BUFFER, len);
 }
 
+void _xdma_mm2s_sgstop(void) {
+
+    xdmacr_t xdma_cr = { 0 };
+
+    xdma_cr.rs = false;
+
+    xdma_cr.reset = true;
+    xdma_cr.ioc_irq_en = false;
+    xdma_cr.err_irq_en = false;
+
+    (XDMA1 -> mm2s.cr).reg = xdma_cr.reg;
+}
+
+volatile void const* _xdma_mm2s_sg(void const* mem, const size_t len, const size_t chunk) {
+
+    /* check if input valid */
+    if ((mem == NULL) || (chunk > XDMA_BTT_MAX) ||
+            (len < chunk) || ((len % chunk) != 0)) {
+        return NULL;
+    }
+
+    xdmasr_t xdma_sr = { 0 };
+    xdma_sr.reg = (XDMA1 -> mm2s.sr).reg;
+
+    /*check if DMA1 in SG mode */
+    if (!xdma_sr.sg_incld) {
+        return NULL;
+    }
+
+    /* check if DMA1 not running */
+    if (!(xdma_sr.halted) &&
+            !(xdma_sr.idle)) {
+        return NULL;
+    }
+
+    uintptr_t sa_addr = XDMA_IO_BUFFER;    
+    uintptr_t mem_addr = (uintptr_t) mem;
+
+    /* copy start data */
+    _xdcache_invalidate(mem_addr, len);
+
+    memcpy((void *) sa_addr, mem, len);
+    _xdcache_flush(mem_addr, len);
+
+    /* setup cyclic bd ring */
+
+    size_t bd_count = (len / chunk);
+    size_t bd_size = bd_count * sizeof(xsgdmadesc_t);
+
+    memset((void *) XDMA1_IO_BD_RING, 0, bd_size);
+
+    size_t i;
+
+    xsgdmadesc_t *bd_desc;
+    xsgdmadesc_t *start_desc = (xsgdmadesc_t *) XDMA1_IO_BD_RING;    
+
+    for (i = 0, bd_desc = start_desc; 
+            i < bd_count; i++, sa_addr += chunk, bd_desc++) {
+
+        bd_desc -> control.tx_sof = true;
+        bd_desc -> control.tx_eof = true;
+
+        bd_desc -> control.buffer_len = chunk;
+
+        bd_desc -> buffer_addr.lsb = sa_addr;
+        bd_desc -> nextdesc.lsb = (uint32_t) (bd_desc + 1);
+    }
+
+    bd_desc--;
+    bd_desc -> nextdesc.lsb = (uint32_t) start_desc;
+
+    _xdcache_flush(XDMA1_IO_BD_RING, bd_size);
+
+    /* start DMA1 engine */
+
+    XDMA1 -> mm2s.currdesc.lsb.addr = (uint32_t) start_desc;
+    XDMA1 -> mm2s.currdesc.msb = 0;
+
+    xdmacr_t sgdma_cr = { 0 };
+
+    sgdma_cr.rs = true;
+    sgdma_cr.ioc_irq_en = true;
+    sgdma_cr.err_irq_en = true;
+
+    sgdma_cr.cyclic_bd_enable = true;
+
+    (XDMA1 -> mm2s.cr).reg = sgdma_cr.reg;
+
+    (XDMA1 -> mm2s.taildesc).lsb.addr = 0x50;
+    (XDMA1 -> mm2s.taildesc).msb = 0;
+
+    return (void *) sa_addr;
+}
+
 static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const uintptr_t addr, const size_t len) {
 
     /* check memory address is aligned at DMA words boundary */
@@ -316,6 +413,23 @@ static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const
     return addr;
 }
 
-/*static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len) {
-    return false;
-}*/
+/* DMA1 ISR */
+
+static void onxDMA1_irq(void) {
+
+    volatile xdmasr_t xdma_sr = { 0 };
+    xdma_sr.reg = (XDMA1 -> mm2s.sr).reg;
+
+    bool ioe = xdma_sr.err_irq;
+
+    (XDMA1 -> mm2s.sr).ioc_irq = true;
+    (XDMA1 -> mm2s.sr).err_irq = true;
+
+    int sgl = SIGINT;
+
+    if (ioe) {
+        sgl |= SIGBUS;        
+    }
+
+    _kernel_raise(sgl);
+}

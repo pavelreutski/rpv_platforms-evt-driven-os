@@ -79,6 +79,7 @@ fat_error_code_t fat_getcode(void);
 void fat_fclose(int fd);
 int fat_fopen(char const* path, file_access_t mode);
 
+size_t fat_fsize(int fd);
 size_t fat_fread(int fd, void *buffer, size_t nread);
 size_t fat_fwrite(int fd, void const* buffer, size_t nwrite);
 
