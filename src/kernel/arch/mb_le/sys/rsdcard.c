@@ -93,6 +93,7 @@ bool _rsdcard_read(void *mem, size_t sector, const size_t count) {
         
         _xdcache_invalidate((uintptr_t) io_buffer, m_len);
         memcpy(mem, (void const*) io_buffer, m_len);
+        _xdcache_flush((uintptr_t) mem, m_len);
     }
 
     return io_ok;

@@ -20,9 +20,17 @@ static uint8_t onSysJournal_display(char const* data, const int argc, const char
 
 	con_clear();
 
-	while (_kernel_jnxtentry(entry, sizeof(entry))) {
+	size_t len;
+	while (_kernel_jnxtentry(entry, sizeof(entry), &len)) {
 
 		j_entries++;
+
+		if (entry[len - 2] != '\n') {
+
+			entry[len - 1] = '\n';
+			entry[len] = '\0';
+		}
+
 		text_monitor(entry);		
 	}
 

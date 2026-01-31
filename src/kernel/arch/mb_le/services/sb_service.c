@@ -9,6 +9,7 @@
 #include "sys/xdma.h"
 #include "sys/xcache.h"
 
+#include "kernel_jrnl.h"
 #include "kernel_stdio.h"
 #include "kernel_signal.h"
 
@@ -64,11 +65,7 @@ typedef struct wavfile_s wavfile_t;
 static int fd;
 
 static uint8_t sb_reg;
-
-static size_t sb_chunk;
 static size_t sb_playcount;
-
-static uint8_t sb_buffer[SB_MAX_BUFFER];
 
 static void sb_service(void);
 static uint8_t onfile_play(char const* input, const int argc, const char **argv);
@@ -84,9 +81,7 @@ static void sb_service(void) {
 
             fd = -1;
 
-            sb_chunk = 0;
             sb_playcount = 0;
-
             sb_reg = SB_IDLE;
 
         } break;
@@ -96,14 +91,12 @@ static void sb_service(void) {
             sb_reg = SB_IDLE;
 
             if (fd < 0) {
-                return;
+                return; /* no file to playback */
             }
-            
-            memset(sb_buffer, SB_S_SAMPLE, sizeof(sb_buffer));
 
             sb_reg = SB_WAIT;
 
-            if (_xdma_mm2s_sg(sb_buffer, sizeof(sb_buffer), SB_BUFF_CHUNK) == NULL) {
+            if (_xdma_mm2s_sgcyclic(SB_S_SAMPLE, SB_MAX_BUFFER, SB_BUFF_CHUNK) == NULL) {
                 
                 sb_reg = SB_CLOSE;
                 sb_service();
@@ -113,7 +106,7 @@ static void sb_service(void) {
 
         case SB_WAIT: {
 
-            sb_reg = SB_WRITE;
+            sb_reg = SB_WAIT;
 
             sigset_t sgls;
             _kernel_sigemptyset(&sgls);
@@ -123,13 +116,19 @@ static void sb_service(void) {
 
             int sgl;
             _kernel_sigwait(&sgls, &sgl);
-
+            
             if (sgl == SIGBUS) {
-                sb_reg = SB_CLOSE;
-            }
 
-            sb_playcount--;
-            sb_service();
+                sb_reg = SB_CLOSE;
+                _kernel_jentry("sb_svc: DMA bus error occured");
+
+            } else if (_xdma_mm2s_sgcmpltIRQ()) {
+
+                sb_reg = SB_WRITE;
+
+                sb_playcount--;
+                sb_service();
+            }
 
         } break;
 
@@ -139,7 +138,18 @@ static void sb_service(void) {
 
             /* sb write */
 
-            void *buffer = &sb_buffer[sb_chunk];        
+            void *buffer = _xdma_mm2s_sgcmplt(SB_BUFF_CHUNK);
+
+            if (buffer == NULL) {
+
+                sb_reg = SB_CLOSE;
+                sb_service();
+
+                _kernel_jentry("sb_svc: cannot write. DMA gave NULL buffer");
+
+                return;
+            }
+                             
             size_t n_read = fat_fread(fd, buffer, SB_BUFF_CHUNK);
 
             if (n_read == 0) {            
@@ -149,23 +159,21 @@ static void sb_service(void) {
                     sb_reg = SB_CLOSE;
                     sb_service();
 
+                    _kernel_jentry("sb_svc: playback OK");
+
                     return;
                 }
 
                 memset(buffer, SB_S_SAMPLE, SB_BUFF_CHUNK);
 
             } else if(n_read < SB_BUFF_CHUNK) {
-                memset(&sb_buffer[sb_chunk + n_read], SB_S_SAMPLE, (SB_BUFF_CHUNK - n_read));
+
+                memset(&((uint8_t *) buffer)[n_read], SB_S_SAMPLE, (SB_BUFF_CHUNK - n_read));
             }
 
-            size_t next_chunk = (sb_chunk + 1);
-
-            if (next_chunk >= SB_BUFF_CHUNKS) {
-                next_chunk = 0;
+            if (n_read < SB_BUFF_CHUNK) {
+                _xdcache_flush((uintptr_t) buffer, SB_BUFF_CHUNK);
             }
-
-            sb_chunk = next_chunk;
-            _xdcache_flush((uintptr_t) buffer, SB_BUFF_CHUNK);
 
         } break;
 
@@ -173,9 +181,12 @@ static void sb_service(void) {
 
             sb_reg = SB_INIT;
 
-            fat_fclose(fd);
             /* stop dma */
             _xdma_mm2s_sgstop();
+            /* close play file */
+            fat_fclose(fd);
+
+            _kernel_jentry("sb_svc: play file closed and DMA stopped");
 
             sb_service();
                 
@@ -193,7 +204,7 @@ static uint8_t onfile_play(char const* input, const int argc, const char **argv)
 
     (void) input;
 
-    if (argc != 1) {
+    if (argc == 0) {
 
         _kernel_outString("no file given\n");
         return EXEC_BUILT_IN;
@@ -241,9 +252,8 @@ static uint8_t onfile_play(char const* input, const int argc, const char **argv)
     _kernel_outStringFormat("audio format: %d Hz, %dbit, %s\n", sample_rate, sample_bits, channels);
 
     _kernel_outString("playing...\n");
-    
-    fat_fclose(ifd);
 
+    fd = ifd;
     sb_playcount = playcount;
     
     return EXEC_BUILT_IN;

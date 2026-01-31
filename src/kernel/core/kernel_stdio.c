@@ -3,6 +3,7 @@
 
 #include "events.h"
 #include "console.h"
+#include <signal.h>
 
 #include "kernel.h"
 #include "kernel_stdio.h"
@@ -76,7 +77,7 @@ bool _kernel_tryGetKey(console_key_t *key) {
 	sigset_t set;
 
 	_kernel_sigemptyset(&set);
-	_kernel_sigaddset(&set, SIGINT);
+	_kernel_sigaddset(&set, SIGIO);
 
 	_kernel_sigprocmask(SIG_BLOCK, &set, NULL);
 
@@ -85,7 +86,7 @@ bool _kernel_tryGetKey(console_key_t *key) {
 
 	_kernel_sigpending(&pending);
 	
-	bool is_sigInt = _kernel_sigismember(&pending, SIGINT);
+	bool is_sigInt = _kernel_sigismember(&pending, SIGIO);
 
 	if (is_sigInt) {
 
@@ -101,7 +102,7 @@ void _kernel_getKey(console_key_t *key) {
 	sigset_t set;
 
 	_kernel_sigemptyset(&set);
-	_kernel_sigaddset(&set, SIGINT);
+	_kernel_sigaddset(&set, SIGIO);
 
 	_kernel_sigprocmask(SIG_BLOCK, &set, NULL);
 
@@ -113,7 +114,7 @@ void _kernel_getKey(console_key_t *key) {
 
 static __attribute__((noinline)) void onKernel_userConKey(evt_data_t *evtData) {
 	
-	_kernel_raise(SIGINT);
+	_kernel_raise(SIGIO);
     memcpy(&key_Buffer, (console_key_t *) evtData, sizeof(console_key_t));
 }
 

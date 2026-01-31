@@ -20,6 +20,15 @@
 
 #define EVT_PROCESS_FINISHED           (0xff)
 
+enum {
+
+	KERNEL_IDLE,
+	KERNEL_SVC,
+	KERNEL_EVT,
+	KERNEL_PROC,
+	KERNEL_PROC_EVT
+};
+
 struct evt_s {
 
 	uint8_t evtId;
@@ -45,8 +54,8 @@ struct proc_s {
 
 	uint16_t id;
 
-	sigset_t flags;
-	sigset_t flagMask;
+	sigset_t sigs;
+	sigset_t sigMask;
 
 	int argc;
 	const char **argv;
@@ -72,11 +81,13 @@ static process_t *rt_proc                               = NULL;
 static evt_t events[MAX_QUEUE_EVENTS];
 static evt_subscription_token_t evt_tokens[MAX_EVT_SUBSCRIBERS];
 
-static sigset_t kernel_flags                            = 0;
-static sigset_t kernel_flagMask                         = 0;
+static uint8_t kernel_pipeline                         = 0;
 
-static sigset_t* context_flags(void);
-static sigset_t* context_flagMask(void);
+static sigset_t kernel_sigs                            = 0;
+static sigset_t kernel_sigMask                         = 0;
+
+static sigset_t* context_signals(void);
+static sigset_t* context_sigMask(void);
 
 static void subscribe_evt(uint8_t evtId, evt_subscriber_t sub);
 
@@ -183,7 +194,7 @@ int	_kernel_raise(int sgl) {
 		return -1;
 	}
 
-	sigset_t *ctx_flags = context_flags();
+	sigset_t *ctx_flags = context_signals();
 	*ctx_flags |= (((sigset_t) 1) << flag);
 
 	return 0;
@@ -196,10 +207,14 @@ int _kernel_sigwait(const sigset_t *set, int *sgl) {
 	sigset_t sgls = 0;
 	sigset_t wait_set = *set;
 
-	sigset_t *ctx_flags = context_flags();
+	sigset_t *ctx_flags = context_signals();
 
-	do {		
-		_kernel_pipeline();
+	do {
+
+		if (kernel_pipeline != KERNEL_SVC) {
+			_kernel_pipeline();
+		}
+
 		sgls = ((*ctx_flags) & wait_set);
 	} while(sgls == 0);
 
@@ -221,9 +236,12 @@ int _kernel_sigpending(sigset_t *set) {
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
 	sigset_t pending_set = 0;
-	sigset_t *ctx_flags = context_flags();
+	sigset_t *ctx_flags = context_signals();
 
-	_kernel_pipeline();
+	if (kernel_pipeline != KERNEL_SVC) {
+		_kernel_pipeline();
+	}
+
 	pending_set = *ctx_flags;
 
 	*set = pending_set;
@@ -234,7 +252,7 @@ int _kernel_sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
 	
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
-	sigset_t *ctx_flagMask = context_flagMask();
+	sigset_t *ctx_flagMask = context_sigMask();
 
 	if (oldset != NULL) {
 		*oldset = *ctx_flagMask;
@@ -250,7 +268,7 @@ int _kernel_sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
 						
 			*ctx_flagMask &= ~(*set);
 
-			sigset_t *ctx_flags = context_flags();
+			sigset_t *ctx_flags = context_signals();
 			*ctx_flags &= *(ctx_flagMask);
 		} break;
 
@@ -299,17 +317,19 @@ bool _kernel_sigismember(sigset_t *set, const int sgl) {
 
 // -------------------------------------------- internal private --------------------------------------------------
 
-static sigset_t* context_flags(void) {
+static sigset_t* context_signals(void) {
 	return (rt_proc != NULL) ?
-			&(rt_proc -> flags) : &kernel_flags;
+			&(rt_proc -> sigs) : &kernel_sigs;
 }
 
-static sigset_t* context_flagMask(void) {
+static sigset_t* context_sigMask(void) {
 	return (rt_proc != NULL) ?
-		&(rt_proc -> flagMask) : &kernel_flagMask;
+		&(rt_proc -> sigMask) : &kernel_sigMask;
 }
 
 static __attribute__((noinline)) void exec_svcs(void) {
+
+	kernel_pipeline = KERNEL_SVC;
 
 	for (service_t *service = (service_t *) &__svc_table; 
 			service != (service_t *) &__end_svc_table; service++) {
@@ -318,6 +338,9 @@ static __attribute__((noinline)) void exec_svcs(void) {
 }
 
 static __attribute__((noinline)) void exec_evts(void) {
+
+	kernel_pipeline = 
+		(rt_proc != NULL) ? KERNEL_PROC_EVT: KERNEL_EVT;
 
 	if (free_events == MAX_QUEUE_EVENTS) {
 		return;
@@ -427,6 +450,7 @@ static __attribute__((noinline)) void run_proc() {
 	int (*callee_addr)(int argc,
 			const char **argv) = rt_proc -> callee_addr;
 
+	kernel_pipeline = KERNEL_PROC;
 	callee_addr(argc, argv);
 
 	// unsubscribe just finished process

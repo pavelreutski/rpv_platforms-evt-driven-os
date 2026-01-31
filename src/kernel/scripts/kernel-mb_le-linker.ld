@@ -1,9 +1,8 @@
 /* Specify the default entry point to the program */
 
 ENTRY(_start)
-/* OUTPUT_ARCH(elf32microblazeel) */
 
-_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x400;
+_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x8000;
 _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0x800;
 
 /* Define Memories in the system */

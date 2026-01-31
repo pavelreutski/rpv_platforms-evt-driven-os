@@ -17,10 +17,16 @@ static char journal[MAX_JOURNAL_SIZE];
 static void drop_oldestEntries(size_t entry_len);
 static size_t j_read(char *entry, const size_t max_len);
 
-bool _kernel_jnxtentry(char *entry, const size_t max_len) {
+bool _kernel_jnxtentry(char *entry, const size_t max_len, size_t *const entry_len) {
 
-    size_t entry_len = j_read(entry, max_len);
-    return (entry_len > 0);
+    if (entry_len == NULL) {
+        return false;
+    }
+
+    size_t len = j_read(entry, max_len);
+    *entry_len = len;
+
+    return (len > 0);
 }
 
 void _kernel_jentry(char const* fmt, ...) {

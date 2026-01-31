@@ -24,11 +24,18 @@
 #define XDMA_MAX_BTT_WIDTH          (14)
 
 #define XDMA_BTT_MAX                ((1ul << XDMA_MAX_BTT_WIDTH) - 1)
+#define XDMA_IO_BUFFER_SIZE         ((1ul << XDMA_MAX_BTT_WIDTH))
+
+/* ----------------------------------------------------------------------------------- */
 
 #define XDMA0_IO_BUFFER             (XDMA_IO_BUFFER)
 
-#define XDMA1_IO_BUFFER             (XDMA0_IO_BUFFER + (1ul << XDMA_MAX_BTT_WIDTH))
-#define XDMA1_IO_BD_RING            (XDMA1_IO_BUFFER + (1ul << XDMA_MAX_BTT_WIDTH))
+/* ----------------------------------------------------------------------------------- */
+
+#define XDMA1_MAX_BDS               (2)
+
+#define XDMA1_IO_BUFFER             (XDMA0_IO_BUFFER + XDMA_IO_BUFFER_SIZE)
+#define XDMA1_IO_BD_RING            (XDMA1_IO_BUFFER + XDMA_IO_BUFFER_SIZE)
 
 /* XDMA control register */
 
@@ -244,6 +251,8 @@ typedef struct xsgdma_ch_s xsgdma_ch_t;
 typedef struct xdirectdma_s xdirectdma_t;
 typedef struct xdirectdma_ch_s xdirectdma_ch_t;
 
+static volatile bool sgmm2s_cmplt;
+
 static __attribute__((fast_interrupt)) void onxDMA1_irq(void);
 
 // static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
@@ -256,10 +265,14 @@ void _xdma_start(void) {
     (XDMA0 -> mm2s.cr).reset = true;
     (XDMA0 -> s2mm.cr).reset = true;
 
+    (XDMA1 -> mm2s.cr).reset = true;
+
     /* wait for reset done */
 
     while((XDMA0 -> mm2s.cr).reset) { }
     while((XDMA0 -> s2mm.cr).reset) { }
+
+    while((XDMA1 -> mm2s.cr).reset) { }
 
     _xintc_enableIRQ(XDMA1_IRQ, onxDMA1_irq);
 }
@@ -304,9 +317,13 @@ volatile void const* _xdma_s2mm_simple(const size_t len) {
     return (void *) xdirectdma_trans(XDMA0_S2MM, XDMA0_IO_BUFFER, len);
 }
 
+bool _xdma_mm2s_sgcmpltIRQ(void) {
+    return sgmm2s_cmplt;
+}
+
 void _xdma_mm2s_sgstop(void) {
 
-    xdmacr_t xdma_cr = { 0 };
+    volatile xdmacr_t xdma_cr = { 0 };
 
     xdma_cr.rs = false;
 
@@ -315,12 +332,52 @@ void _xdma_mm2s_sgstop(void) {
     xdma_cr.err_irq_en = false;
 
     (XDMA1 -> mm2s.cr).reg = xdma_cr.reg;
+
+    while((XDMA1 -> mm2s.cr).reset) { }
 }
 
-volatile void const* _xdma_mm2s_sg(void const* mem, const size_t len, const size_t chunk) {
+void * _xdma_mm2s_sgcmplt(const size_t len) {
+
+    size_t i;
+
+    xsgdmadesc_t *bd_desc;
+    xsgdmadesc_t *start_desc = (xsgdmadesc_t *) XDMA1_IO_BD_RING;
+
+    for (i = 0, bd_desc = start_desc; 
+            (i < XDMA1_MAX_BDS) && (bd_desc != NULL) && (!bd_desc -> status.cmplt); 
+                i++, bd_desc = (xsgdmadesc_t *) bd_desc -> nextdesc.lsb) {        
+    }
+
+    if ((i == XDMA1_MAX_BDS) || (bd_desc == NULL)) {
+        return NULL;
+    }
+
+    size_t bd_blen = bd_desc -> control.buffer_len;
+    uintptr_t bd_baddr = bd_desc -> buffer_addr.lsb;
+
+    if (bd_blen != len) {
+        return NULL;
+    }
+
+    bd_desc -> status.trans_len = 0;
+
+    bd_desc -> status.cmplt = false;
+
+    bd_desc -> status.dma_decErr = false;
+    bd_desc -> status.dma_intErr = false;
+    bd_desc -> status.dma_intSlvErr = false;
+
+    sgmm2s_cmplt = false;
+
+    return (void *) bd_baddr;
+}
+
+volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const size_t chunk) {
+
+    sgmm2s_cmplt = false;
 
     /* check if input valid */
-    if ((mem == NULL) || (chunk > XDMA_BTT_MAX) ||
+    if ((len > XDMA_IO_BUFFER_SIZE) ||
             (len < chunk) || ((len % chunk) != 0)) {
         return NULL;
     }
@@ -339,14 +396,14 @@ volatile void const* _xdma_mm2s_sg(void const* mem, const size_t len, const size
         return NULL;
     }
 
-    uintptr_t sa_addr = XDMA_IO_BUFFER;    
-    uintptr_t mem_addr = (uintptr_t) mem;
+    uintptr_t sa_addr = XDMA1_IO_BUFFER;    
+    uintptr_t mem_addr = (uintptr_t) seed;
 
     /* copy start data */
     _xdcache_invalidate(mem_addr, len);
 
-    memcpy((void *) sa_addr, mem, len);
-    _xdcache_flush(mem_addr, len);
+    memset((void *) sa_addr, seed, len);
+    _xdcache_flush(sa_addr, len);
 
     /* setup cyclic bd ring */
 
@@ -420,15 +477,20 @@ static void onxDMA1_irq(void) {
     volatile xdmasr_t xdma_sr = { 0 };
     xdma_sr.reg = (XDMA1 -> mm2s.sr).reg;
 
+    /* its either an error or i/o complete IRQ */
     bool ioe = xdma_sr.err_irq;
+    bool ioc = xdma_sr.ioc_irq;
 
-    (XDMA1 -> mm2s.sr).ioc_irq = true;
-    (XDMA1 -> mm2s.sr).err_irq = true;
+    (XDMA1 -> mm2s.sr).reg = xdma_sr.reg;
 
     int sgl = SIGINT;
 
     if (ioe) {
-        sgl |= SIGBUS;        
+        sgl = SIGBUS;        
+    }
+
+    if (ioc) {
+        sgmm2s_cmplt = true;
     }
 
     _kernel_raise(sgl);
