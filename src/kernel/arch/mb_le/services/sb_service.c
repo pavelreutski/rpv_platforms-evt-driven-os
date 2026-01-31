@@ -96,7 +96,8 @@ static void sb_service(void) {
 
             sb_reg = SB_WAIT;
 
-            if (_xdma_mm2s_sgcyclic(SB_S_SAMPLE, SB_MAX_BUFFER, SB_BUFF_CHUNK) == NULL) {
+            if (_xdma_mm2s_sgcyclic(SB_S_SAMPLE, 
+                    SB_MAX_BUFFER, SB_BUFF_CHUNK) == NULL) {
                 
                 sb_reg = SB_CLOSE;
                 sb_service();
@@ -167,7 +168,6 @@ static void sb_service(void) {
                 memset(buffer, SB_S_SAMPLE, SB_BUFF_CHUNK);
 
             } else if(n_read < SB_BUFF_CHUNK) {
-
                 memset(&((uint8_t *) buffer)[n_read], SB_S_SAMPLE, (SB_BUFF_CHUNK - n_read));
             }
 
@@ -181,10 +181,10 @@ static void sb_service(void) {
 
             sb_reg = SB_INIT;
 
-            /* stop dma */
-            _xdma_mm2s_sgstop();
             /* close play file */
             fat_fclose(fd);
+            /* stop dma */
+            _xdma_mm2s_sgstop();
 
             _kernel_jentry("sb_svc: play file closed and DMA stopped");
 

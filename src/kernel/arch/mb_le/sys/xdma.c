@@ -120,16 +120,11 @@ union xdma_sgctl_u {
 /* XSGDMA descriptor ptr register */
 
 struct xdma_desc_ptr_u {
-
-    struct {
-
-        uint32_t reserved0_5 : 6;   /* Bits 0–5  : RO Reserved, always read as 0 */
-        uint32_t addr        : 26;  /* Bits 6–31 : R/W (RO when running)
-                                     * Descriptor pointer lsb.
+    
+    uint32_t lsb;                   /* Descriptor pointer lsb
                                      * Must be written only when DMA is halted.
                                      * Descriptor address must be 64-byte aligned. */
-    } lsb;
-    
+
     uint32_t msb;                   /* Descriptor pointer msb */
 };
 
@@ -374,8 +369,6 @@ void * _xdma_mm2s_sgcmplt(const size_t len) {
 
 volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const size_t chunk) {
 
-    sgmm2s_cmplt = false;
-
     /* check if input valid */
     if ((len > XDMA_IO_BUFFER_SIZE) ||
             (len < chunk) || ((len % chunk) != 0)) {
@@ -396,11 +389,7 @@ volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const
         return NULL;
     }
 
-    uintptr_t sa_addr = XDMA1_IO_BUFFER;    
-    uintptr_t mem_addr = (uintptr_t) seed;
-
-    /* copy start data */
-    _xdcache_invalidate(mem_addr, len);
+    uintptr_t sa_addr = XDMA1_IO_BUFFER;
 
     memset((void *) sa_addr, seed, len);
     _xdcache_flush(sa_addr, len);
@@ -436,10 +425,11 @@ volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const
 
     /* start DMA1 engine */
 
-    XDMA1 -> mm2s.currdesc.lsb.addr = (uint32_t) start_desc;
-    XDMA1 -> mm2s.currdesc.msb = 0;
+    sgmm2s_cmplt = false;
 
-    xdmacr_t sgdma_cr = { 0 };
+    XDMA1 -> mm2s.currdesc.lsb = (uint32_t) start_desc;    
+
+    volatile xdmacr_t sgdma_cr = { 0 };
 
     sgdma_cr.rs = true;
     sgdma_cr.ioc_irq_en = true;
@@ -448,9 +438,7 @@ volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const
     sgdma_cr.cyclic_bd_enable = true;
 
     (XDMA1 -> mm2s.cr).reg = sgdma_cr.reg;
-
-    (XDMA1 -> mm2s.taildesc).lsb.addr = 0x50;
-    (XDMA1 -> mm2s.taildesc).msb = 0;
+    (XDMA1 -> mm2s.taildesc).lsb = 0x50;
 
     return (void *) sa_addr;
 }
@@ -478,6 +466,7 @@ static void onxDMA1_irq(void) {
     xdma_sr.reg = (XDMA1 -> mm2s.sr).reg;
 
     /* its either an error or i/o complete IRQ */
+
     bool ioe = xdma_sr.err_irq;
     bool ioc = xdma_sr.ioc_irq;
 
