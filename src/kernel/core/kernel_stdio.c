@@ -3,7 +3,6 @@
 
 #include "events.h"
 #include "console.h"
-#include <signal.h>
 
 #include "kernel.h"
 #include "kernel_stdio.h"

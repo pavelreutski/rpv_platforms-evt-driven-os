@@ -62,6 +62,9 @@ struct proc_s {
 	int (*callee_addr)(int argc, const char **argv);
 };
 
+typedef unsigned char __sigsem_t;
+typedef __sigsem_t sigsem_t;
+
 typedef struct proc_s process_t;
 
 typedef struct evt_s evt_t;
@@ -85,9 +88,16 @@ static uint8_t kernel_pipeline                         = 0;
 
 static sigset_t kernel_sigs                            = 0;
 static sigset_t kernel_sigMask                         = 0;
+static sigsem_t kernel_sigintsem                       = 0;
 
 static sigset_t* context_signals(void);
 static sigset_t* context_sigMask(void);
+
+static void sigblock(const sigset_t set);
+static void sigunblock(const sigset_t set);
+
+static void sigsem_inc(const sigset_t set);
+static void sigsem_dec(const sigset_t set);
 
 static void subscribe_evt(uint8_t evtId, evt_subscriber_t sub);
 
@@ -194,8 +204,8 @@ int	_kernel_raise(int sgl) {
 		return -1;
 	}
 
-	sigset_t *ctx_flags = context_signals();
-	*ctx_flags |= (((sigset_t) 1) << flag);
+	sigset_t rising_set = (((sigset_t) 1) << flag);
+	sigsem_inc(rising_set);
 
 	return 0;
 }
@@ -204,10 +214,19 @@ int _kernel_sigwait(const sigset_t *set, int *sgl) {
 
 	static_assert(((sigset_t) - 1) > 0, "sigset_t must be unsigned");
 
+	if (set == NULL) {
+		return -1;
+	}
+
 	sigset_t sgls = 0;
 	sigset_t wait_set = *set;
 
 	sigset_t *ctx_flags = context_signals();
+	sigset_t *ctx_flagMask = context_sigMask();
+
+	if (!(wait_set & (*ctx_flagMask))) {
+		return -1;
+	}
 
 	do {
 
@@ -225,8 +244,17 @@ int _kernel_sigwait(const sigset_t *set, int *sgl) {
 			(s == 0) && (i < (sizeof(sigset_t) * CHAR_BIT)); 
 					i++, sgls >>= 1, s = (sgls & 1)) { }
 
-	*sgl = (i + 1);
-	*ctx_flags &= (~(((sigset_t) 1) << i));
+	int awsgl = (i + 1);
+	
+	/* to unblock SIGINT it requires additional assertion 
+	 * i.e. the source is unknown here and its nearly impossible 
+	 * define a common iface for such assert thats easy to maintain */
+
+	if (awsgl != SIGINT) {
+		sigunblock((((sigset_t) 1) << i));
+	}
+
+	*sgl = awsgl;
 
 	return 0;
 }
@@ -262,18 +290,16 @@ int _kernel_sigprocmask(int what, const sigset_t *set, sigset_t *oldset) {
 		return 0;
 	}
 
+	sigset_t sigset = *set;
+
 	switch(what) {
 
 		case SIG_UNBLOCK: {
-						
-			*ctx_flagMask &= ~(*set);
-
-			sigset_t *ctx_flags = context_signals();
-			*ctx_flags &= *(ctx_flagMask);
+			sigsem_dec(sigset);
 		} break;
 
-		case SIG_SETMASK: { *ctx_flagMask = *set; } break;
-		case SIG_BLOCK: { *ctx_flagMask |= (*set); } break;
+		case SIG_BLOCK: { sigblock(sigset); } break;
+		case SIG_SETMASK: { *ctx_flagMask = sigset; } break;
 
 		default:
 			return -1;
@@ -325,6 +351,54 @@ static sigset_t* context_signals(void) {
 static sigset_t* context_sigMask(void) {
 	return (rt_proc != NULL) ?
 		&(rt_proc -> sigMask) : &kernel_sigMask;
+}
+
+static void sigblock(const sigset_t set) {
+
+	sigset_t *ctx_flagMask = context_sigMask();
+	*ctx_flagMask |= set;
+}
+
+static void sigunblock(const sigset_t set) {
+
+	sigset_t *ctx_flags = context_signals();
+	sigset_t *ctx_flagMask = context_sigMask();
+
+	sigset_t clrmask = ~(set);
+
+	*ctx_flags &= clrmask;
+	*ctx_flagMask &= clrmask;
+}
+
+static void sigsem_inc(const sigset_t set) {
+
+	if ((set & (((sigset_t) 1) << (SIGINT - 1)))) {
+
+		sigsem_t nextsem = kernel_sigintsem;
+		if ((++nextsem) != 0) {
+			kernel_sigintsem = nextsem;
+		}
+	}
+
+	sigset_t *ctx_flags = context_signals();
+	*ctx_flags |= (set);
+}
+
+static void sigsem_dec(const sigset_t set) {
+
+	if ((set & (((sigsem_t) 1) << (SIGINT - 1)))) {
+
+		sigsem_t nextsem = kernel_sigintsem;
+		if ((--nextsem) != 0xFF) {
+			kernel_sigintsem = nextsem;
+		}
+
+		if (kernel_sigintsem > 0) {
+			return;
+		}
+	}
+
+	sigunblock(set);
 }
 
 static __attribute__((noinline)) void exec_svcs(void) {

@@ -129,6 +129,8 @@ static void sb_service(void) {
 
                 sb_playcount--;
                 sb_service();
+
+                _kernel_sigprocmask(SIG_UNBLOCK, &sgls, NULL);
             }
 
         } break;
