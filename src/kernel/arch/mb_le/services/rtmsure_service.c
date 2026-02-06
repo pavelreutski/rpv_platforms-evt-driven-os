@@ -60,7 +60,7 @@ static uint8_t onrtmsure_query(char const* input, const int argc, const char **a
     }
 
     _kernel_outString("reaction time\n----------\n");    
-    _kernel_outStringFormat("short: %d ms\nlong: %d\n", rt_msuretime, (int) 0);
+    _kernel_outStringFormat("short: %d ms\nlong: %d ms\n", rt_msuretime, (int) 0);
 
     return EXEC_BUILT_IN;
 }
