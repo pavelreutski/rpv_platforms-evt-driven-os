@@ -88,6 +88,8 @@ static uint8_t kernel_pipeline                         = 0;
 
 static sigset_t kernel_sigs                            = 0;
 static sigset_t kernel_sigMask                         = 0;
+
+static sigsem_t kernel_sigbussem					   = 0;
 static sigsem_t kernel_sigintsem                       = 0;
 
 static sigset_t* context_signals(void);
@@ -98,6 +100,9 @@ static void sigunblock(const sigset_t set);
 
 static void sigsem_inc(const sigset_t set);
 static void sigsem_dec(const sigset_t set);
+
+static inline sigsem_t sem_inc(sigsem_t sem);
+static inline sigsem_t sem_dec(sigsem_t sem);
 
 static void subscribe_evt(uint8_t evtId, evt_subscriber_t sub);
 
@@ -246,16 +251,19 @@ int _kernel_sigwait(const sigset_t *set, int *sgl) {
 
 	int awsgl = (i + 1);
 	
-	/* to unblock SIGINT it requires additional assertion 
+	/* to unblock SIGINT and SIGBUS requires additional assertion 
 	 * i.e. the source is unknown here and its nearly impossible 
-	 * define a common iface for such assert thats easy to maintain */
-
-	if (awsgl != SIGINT) {
-		sigunblock((((sigset_t) 1) << i));
-	}
+	 * define a common iface for such assert thats easy to maintain 
+	 * also its under awaiter responsibility to ack these signals */
 
 	*sgl = awsgl;
 
+	if ((awsgl == SIGINT) ||
+			(awsgl == SIGBUS)) {				
+		return 0;
+	}
+
+	sigunblock((((sigset_t) 1) << i));
 	return 0;
 }
 
@@ -343,6 +351,25 @@ bool _kernel_sigismember(sigset_t *set, const int sgl) {
 
 // -------------------------------------------- internal private --------------------------------------------------
 
+static inline sigsem_t sem_inc(sigsem_t sem) {
+
+	sigsem_t next_sem = sem;
+	if ((++next_sem) != 0) {
+		return next_sem;
+	}
+
+	return sem;
+}
+static inline sigsem_t sem_dec(sigsem_t sem) {
+
+	sigsem_t next_sem = sem;
+	if ((--next_sem) != 0xFF) {
+		return next_sem;
+	}
+
+	return sem;
+}
+
 static sigset_t* context_signals(void) {
 	return (rt_proc != NULL) ?
 			&(rt_proc -> sigs) : &kernel_sigs;
@@ -372,12 +399,15 @@ static void sigunblock(const sigset_t set) {
 
 static void sigsem_inc(const sigset_t set) {
 
-	if ((set & (((sigset_t) 1) << (SIGINT - 1)))) {
+	sigset_t sigint_mask = (((sigset_t) 1) << (SIGINT - 1));
+	sigset_t sigbus_mask = (((sigset_t) 1) << (SIGBUS - 1));
 
-		sigsem_t nextsem = kernel_sigintsem;
-		if ((++nextsem) != 0) {
-			kernel_sigintsem = nextsem;
-		}
+	if (set & sigint_mask) {
+		kernel_sigintsem = sem_inc(kernel_sigintsem);
+	}
+
+	if (set & sigbus_mask) {
+		kernel_sigbussem = sem_inc(kernel_sigbussem);
 	}
 
 	sigset_t *ctx_flags = context_signals();
@@ -386,19 +416,28 @@ static void sigsem_inc(const sigset_t set) {
 
 static void sigsem_dec(const sigset_t set) {
 
-	if ((set & (((sigsem_t) 1) << (SIGINT - 1)))) {
+	sigset_t unblock_set = set;
 
-		sigsem_t nextsem = kernel_sigintsem;
-		if ((--nextsem) != 0xFF) {
-			kernel_sigintsem = nextsem;
-		}
+	sigset_t sigint_mask = (((sigset_t) 1) << (SIGINT - 1));
+	sigset_t sigbus_mask = (((sigset_t) 1) << (SIGBUS - 1));
 
-		if (kernel_sigintsem > 0) {
-			return;
-		}
+	if (set & sigint_mask) {
+		kernel_sigintsem = sem_dec(kernel_sigintsem);
 	}
 
-	sigunblock(set);
+	if (set & sigbus_mask) {
+		kernel_sigbussem = sem_dec(kernel_sigbussem);
+	}
+	
+	if (kernel_sigintsem > 0) {
+		unblock_set &= (~(sigint_mask));
+	}
+
+	if (kernel_sigbussem > 0) {
+		unblock_set &= (~(sigbus_mask));
+	}
+
+	sigunblock(unblock_set);
 }
 
 static __attribute__((noinline)) void exec_svcs(void) {

@@ -246,7 +246,7 @@ typedef struct xsgdma_ch_s xsgdma_ch_t;
 typedef struct xdirectdma_s xdirectdma_t;
 typedef struct xdirectdma_ch_s xdirectdma_ch_t;
 
-static volatile bool sgmm2s_cmplt;
+static volatile bool sgmm2s_cmpltSig;
 
 static __attribute__((fast_interrupt)) void onxDMA1_irq(void);
 
@@ -312,8 +312,8 @@ volatile void const* _xdma_s2mm_simple(const size_t len) {
     return (void *) xdirectdma_trans(XDMA0_S2MM, XDMA0_IO_BUFFER, len);
 }
 
-bool _xdma_mm2s_sgcmpltIRQ(void) {
-    return sgmm2s_cmplt;
+bool _xdma_mm2s_sgcmpltSignal(void) {
+    return sgmm2s_cmpltSig;
 }
 
 void _xdma_mm2s_sgstop(void) {
@@ -362,7 +362,7 @@ void * _xdma_mm2s_sgcmplt(const size_t len) {
     bd_desc -> status.dma_intErr = false;
     bd_desc -> status.dma_intSlvErr = false;
 
-    sgmm2s_cmplt = false;
+    sgmm2s_cmpltSig = false;
 
     return (void *) bd_baddr;
 }
@@ -425,7 +425,7 @@ volatile void const* _xdma_mm2s_sgcyclic(const int seed, const size_t len, const
 
     /* start DMA1 engine */
 
-    sgmm2s_cmplt = false;
+    sgmm2s_cmpltSig = false;
 
     XDMA1 -> mm2s.currdesc.lsb = (uint32_t) start_desc;    
 
@@ -479,7 +479,7 @@ static void onxDMA1_irq(void) {
     }
 
     if (ioc) {
-        sgmm2s_cmplt = true;
+        sgmm2s_cmpltSig = true;
     }
 
     _kernel_raise(sgl);

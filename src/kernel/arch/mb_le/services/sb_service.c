@@ -123,7 +123,7 @@ static void sb_service(void) {
                 sb_reg = SB_CLOSE;
                 _kernel_jentry("sb_svc: DMA bus error occured");
 
-            } else if (_xdma_mm2s_sgcmpltIRQ()) {
+            } else if (_xdma_mm2s_sgcmpltSignal()) {
 
                 sb_reg = SB_WRITE;
 
