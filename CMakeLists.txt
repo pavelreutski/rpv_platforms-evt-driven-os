@@ -19,4 +19,4 @@ set(CMAKE_AUTOGEN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/autogen")
 
 # add projects
 
-add_subdirectory(./src/kernel)
+add_subdirectory(./src)

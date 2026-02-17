@@ -55,10 +55,10 @@ set(FF_FS_TIMEOUT       1000)
 
 set(FATFS_AUTOGEN_DIR ${CMAKE_AUTOGEN_OUTPUT_DIRECTORY}/fatfs)
 
-configure_file(./arch/fatfs/ffconf.h.in
+configure_file(./fatfs/ffconf.h.in
                ${FATFS_AUTOGEN_DIR}/ffconf.h)
 
-file(GLOB FAT_FS_GLUE_SOURCES CONFIGURE_DEPENDS ./arch/fatfs/*.c)
+file(GLOB FAT_FS_GLUE_SOURCES CONFIGURE_DEPENDS ./fatfs/*.c)
 
 add_library(fatfs OBJECT ${FAT_FS_GLUE_SOURCES} 
                          ${fatfs_SOURCE_DIR}/source/ff.c
@@ -73,3 +73,5 @@ target_compile_features(fatfs PRIVATE c_std_99)
 target_include_directories(fatfs PRIVATE ./include
                                  PUBLIC  ${FATFS_AUTOGEN_DIR}
                                          ${fatfs_SOURCE_DIR}/source)
+
+target_link_libraries(fatfs PRIVATE rpv-kernel)

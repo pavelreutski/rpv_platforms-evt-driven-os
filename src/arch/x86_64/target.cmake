@@ -1,10 +1,12 @@
 project(rpv-x86_64-kernel LANGUAGES C)
 
+set(KERNEL_PROFILE full CACHE STRING "" FORCE)
+
 include(qemu-x86_64-simul)
 include(kernel-x86_64-iso)
 
 # use fatfs as files I/O backend
-include(./arch/fatfs/fatfs.cmake)
+include(./fatfs/fatfs.cmake)
 
 # x86_64 system platform
 add_subdirectory(./arch/x86_64/sys)
@@ -14,9 +16,9 @@ file(GLOB_RECURSE KERNEL_X86_64_C_SOURCES CONFIGURE_DEPENDS ./arch/x86_64/*.c)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_X86_64_C_SOURCES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE ./include/arch/x86_64)
+target_include_directories(${PROJECT_NAME} PRIVATE ./include/x86_64)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap fatfs)
+target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap rpv-kernel fatfs)
 
 target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                         -nostartfiles
