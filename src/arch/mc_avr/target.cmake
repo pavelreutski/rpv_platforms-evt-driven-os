@@ -7,7 +7,8 @@ include(avr-mcu_programmer)
 
 FetchContent_Declare(
         evtdriven-kernel
-        SOURCE_DIR ../../../../rpv-evt-driven-kernel
+        GIT_REPOSITORY git@github.com:pavelreutski/rpv-evt-driven-os.git
+        GIT_TAG master
 )
 
 FetchContent_MakeAvailable(evtdriven-kernel)
