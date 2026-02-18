@@ -68,10 +68,10 @@ static uint8_t sb_reg;
 static size_t sb_playcount;
 
 static void sb_service(void);
-static uint8_t onfile_play(char const* input, const int argc, const char **argv);
+static int sb_m(const int argc, const char **argv);
 
+_SHELL_COMMAND(play, sb_m);
 _SERVICE(sb_svc, sb_service);
-_SHELL_COMMAND(play, onfile_play);
 
 static void sb_service(void) {
 
@@ -202,22 +202,20 @@ static void sb_service(void) {
     }
 }
 
-static uint8_t onfile_play(char const* input, const int argc, const char **argv) {
+static int sb_m(const int argc, const char **argv) {    
 
-    (void) input;
-
-    if (argc == 0) {
+    if (argc < 2) {
 
         _kernel_outString("no file given\n");
-        return EXEC_BUILT_IN;
+        return -1;
     }
 
-    int ifd = fat_fopen(argv[0], FILE_READ);
+    int ifd = fat_fopen(argv[1], FILE_READ);
 
     if (ifd < 0) {
 
         _kernel_outStringFormat("unable open an input file\n");
-        return EXEC_BUILT_IN;
+        return -1;
     }
 
     wavfile_t w;
@@ -232,7 +230,7 @@ static uint8_t onfile_play(char const* input, const int argc, const char **argv)
         fat_fclose(ifd);
         _kernel_outString("input file is not a wav file or has unsupported format\nsupported format: 22 kHz, 8bit, mono\n");
 
-        return EXEC_BUILT_IN;
+        return -1;
     }
 
     int sample_rate = w.fmt.dwSampleRate;
@@ -258,5 +256,5 @@ static uint8_t onfile_play(char const* input, const int argc, const char **argv)
     fd = ifd;
     sb_playcount = playcount;
     
-    return EXEC_BUILT_IN;
+    return 0;
 }

@@ -11,10 +11,10 @@
 static int rt_msuretime = -1;
 
 static void rtmsure_service(void);
-static uint8_t onrtmsure_query(char const* input, const int argc, const char **argv);
+static int rtmsure_m(const int argc, const char **argv);
 
+_SHELL_COMMAND(rtmsure, rtmsure_m);
 _SERVICE(rtmsure_svc, rtmsure_service);
-_SHELL_COMMAND(rtmsure, onrtmsure_query);
 
 static void rtmsure_service(void) {
 
@@ -40,27 +40,25 @@ static void rtmsure_service(void) {
     _kernel_sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
-static uint8_t onrtmsure_query(char const* input, const int argc, const char **argv) {
+static int rtmsure_m(const int argc, const char **argv) {
 
     (void) argc;
     (void) argv;
 
-    (void) input;
-
     if (rt_msuretime == -1) {
 
         _kernel_outString("no reaction time available\n");
-        return EXEC_BUILT_IN;
+        return -1;
     }
 
     if (rt_msuretime < 0) {
         
         _kernel_outString("unexpected reaction time format");
-        return EXEC_BUILT_IN;
+        return -1;
     }
 
     _kernel_outString("reaction time\n----------\n");    
     _kernel_outStringFormat("short: %d ms\nlong: %d ms\n", rt_msuretime, (int) 0);
 
-    return EXEC_BUILT_IN;
+    return 0;
 }
