@@ -16,16 +16,3 @@ else()
     message(FATAL_ERROR "kernel must have hardware architecture target. target: ${KERNEL_TARGET}. supported targets: ${KERNEL_TARGETS}")
 
 endif()
-
-# event driven kernel
-
-FetchContent_Declare(
-        evtdriven-kernel
-        SOURCE_DIR ../../../../rpv-evt-driven-kernel
-)
-
-FetchContent_MakeAvailable(evtdriven-kernel)
-
-target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
-
-elf_dump(${PROJECT_NAME})

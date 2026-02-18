@@ -2,6 +2,15 @@ project(rpv-x86_64-kernel LANGUAGES C)
 
 set(KERNEL_PROFILE full CACHE STRING "" FORCE)
 
+# event driven kernel
+
+FetchContent_Declare(
+        evtdriven-kernel
+        SOURCE_DIR ../../../../rpv-evt-driven-kernel
+)
+
+FetchContent_MakeAvailable(evtdriven-kernel)
+
 include(qemu-x86_64-simul)
 include(kernel-x86_64-iso)
 
@@ -16,8 +25,9 @@ file(GLOB_RECURSE KERNEL_X86_64_C_SOURCES CONFIGURE_DEPENDS ./arch/x86_64/*.c)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_X86_64_C_SOURCES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE ./include/x86_64)
+target_compile_definitions(${PROJECT_NAME} PRIVATE c_std_23)
 
+target_include_directories(${PROJECT_NAME} PRIVATE ./include/x86_64)
 target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap rpv-kernel fatfs)
 
 target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
@@ -27,6 +37,8 @@ target_link_options(${PROJECT_NAME} PRIVATE -nostdlib
                                         -znoexecstack
                                         -T${CMAKE_CURRENT_SOURCE_DIR}/scripts/kernel-x86_64-linker.ld
                                         -Wl,-Map,$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map)
+
+elf_dump(${PROJECT_NAME})
 
 kernel_iso(${PROJECT_NAME})
 qemu_simul(${PROJECT_NAME})
