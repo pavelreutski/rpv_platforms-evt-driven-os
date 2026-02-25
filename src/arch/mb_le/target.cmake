@@ -1,5 +1,7 @@
 project(rpv-microblazele-kernel LANGUAGES C ASM)
 
+include(gcc-elf-utils)
+
 set(KERNEL_PROFILE full CACHE STRING "" FORCE)
 
 # event driven kernel

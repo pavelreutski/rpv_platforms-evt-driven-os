@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-project(rpv-evt-driven-os
+project(rpv-evt-driven-platforms
         LANGUAGES NONE
-        DESCRIPTION "rpv event driven os")
+        DESCRIPTION "rpv event driven platforms solution")
 
 # set/add solution cmake modules path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/tools/cmake)

@@ -1,5 +1,7 @@
 project(rpv-x86_64-kernel LANGUAGES C)
 
+include(gcc-elf-utils)
+
 set(KERNEL_PROFILE full CACHE STRING "" FORCE)
 
 # event driven kernel

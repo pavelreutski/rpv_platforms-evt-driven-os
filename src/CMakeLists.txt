@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-include(gcc-elf-utils)
-
 set_property(CACHE KERNEL_TARGET PROPERTY STRINGS "x86_64" "stm32" "microchip_avr" "microblaze_le")
 
 if(KERNEL_TARGET STREQUAL "x86_64")

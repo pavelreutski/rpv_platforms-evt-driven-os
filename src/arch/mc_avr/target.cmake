@@ -1,5 +1,7 @@
 project(rpv-avr-kernel LANGUAGES C)
 
+include(gcc-elf-utils)
+
 include(avr-mcu)
 include(avr-mcu_programmer)
 
