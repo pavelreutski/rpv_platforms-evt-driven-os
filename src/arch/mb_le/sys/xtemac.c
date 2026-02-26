@@ -1,11 +1,22 @@
 #include <stdint.h>
 
 #include "sys/xtemac.h"
+#include "sys/xtemac_phy.h"
 
 #define XTEMAC_BASE                     (0x44A60000)
+
 #define XTEMAC_REG_BASE                 (XTEMAC_BASE + 0x400)
 
 #define XTEMAC                          ((xtemac_t *) XTEMAC_REG_BASE)
+
+enum xtemac_speed_u : uint8_t {
+
+    XTEMAC_10MBPS_SPEED  = 0x00,
+    XTEMAC_100MPBS_SPEED = 0x01,
+    XTEMAC_1GBPS_SPEED   = 0x02
+};
+
+/********************************* XTEMAC registers *************************************/
 
 /* XTEMAC rx config word 1 register */
 
@@ -233,80 +244,6 @@ union xtemac_ic_u {
     };
 };
 
-/* XTEMAC mdio PHY translation */
-
-/* MDIO setup word register */
-
-union xtemac_mdio_setup_word_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t clock_divide       : 6;  /* Bits 0–5  : R/W MDIO Clock Divide
-                                               Sets the clock divider for MDIO transactions
-                                               Must be non-zero for MDIO Enable to take effect */
-        uint32_t mdio_enable        : 1;  /* Bit 6     : R/W MDIO Enable
-                                               0 = MDIO interface disabled
-                                               1 = MDIO interface enabled (requires non-zero clock divide) */
-        uint32_t reserved7_31       : 25; /* Bits 7–31 : RO  Reserved */
-    };
-};
-
-/* MDIO control word register */
-
-union xtemac_mdio_control_word_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t reserved0_6   : 7;  /* Bits 0–6   : RO  Reserved */
-        uint32_t mdio_ready    : 1;  /* Bit 7      : RO  MDIO Ready
-                                         1 = MDIO enabled and ready for new transfer */
-        uint32_t reserved8_10  : 3;  /* Bits 8–10  : RO  Reserved */
-        uint32_t initiate      : 1;  /* Bit 11     : WO  Initiate MDIO transfer
-                                         Write 1 to start read/write transaction */
-        uint32_t reserved12_13 : 2;  /* Bits 12–13 : RO  Reserved */
-        uint32_t op            : 2;  /* Bits 14–15 : WO  MDIO Operation
-                                         01 = Write, 10 = Read */
-        uint32_t phy_reg_addr  : 5;  /* Bits 16–20 : R/W MDIO Register Address */
-        uint32_t reserved21_23 : 3;  /* Bits 21–23 : RO  Reserved */
-        uint32_t phy_addr      : 5;  /* Bits 24–28 : R/W MDIO PHY Address */
-        uint32_t reserved29_31 : 3;  /* Bits 29–31 : RO  Reserved */
-    };
-};
-
-/* MDIO write data register */
-
-union xtemac_mdio_write_data_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t wdata           : 16; /* Bits 0–15  : R/W MDIO Write Data
-                                           Data to be written to the selected PHY register */
-        uint32_t reserved16_31   : 16; /* Bits 16–31 : RO  Reserved */
-    };
-};
-
-/* MDIO read data register */
-
-union xtemac_mdio_read_data_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t rdata           : 16; /* Bits 0–15  : RO  MDIO Read Data
-                                           Valid only when MDIO Ready (bit 7 of MDIO Control Word) is High */
-        uint32_t mdio_ready      : 1;  /* Bit 16     : RO  Copy of MDIO Control Word bit 7
-                                           Indicates MDIO interface is ready for a new transfer */
-        uint32_t reserved17_31   : 15; /* Bits 17–31 : RO  Reserved */
-    };
-};
-
 /* XTEMAC */
 
 struct xtemac_s {
@@ -334,10 +271,7 @@ struct xtemac_s {
 
     /* MDIO */
 
-    volatile union xtemac_mdio_setup_word_u mdio_setup;                /* 0x500 */
-    volatile union xtemac_mdio_control_word_u mdio_cr;                 /* 0x504 */
-    volatile union xtemac_mdio_write_data_u mdio_wdata;                /* 0x508 */
-    volatile union xtemac_mdio_read_data_u mdio_rdata;                 /* 0x50C */
+    volatile uint32_t phy[4];                                          /* 0x500 - 0x50C */
 
     /************************************************/
 
@@ -376,8 +310,12 @@ typedef union xtemac_legacy_pause_refresh_u xtemac_legacy_pause_refresh_t;
 typedef union xtemac_identifier_u xtemac_id_t;
 typedef union xtemac_ability_u xtemac_ability_t;
 
-typedef union xtemac_mdio_setup_word_u xtemac_mdio_setup_t;
-typedef union xtemac_mdio_control_word_u xtemac_mdio_control_t;
+void xtemac_start(void) {
+    xtemac_phy();
+}
 
-typedef union xtemac_mdio_write_data_u xtemac_mdio_wdata_t;
-typedef union xtemac_mdio_read_data_u xtemac_mdio_rdata_t;
+void xtemac_id(char *s, const uint8_t len) {
+
+    (void) s;
+    (void) len;
+}

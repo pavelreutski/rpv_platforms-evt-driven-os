@@ -9,12 +9,17 @@
 
 #define XDMA_IO_BUFFER              (0x80000000)
 
-#define XDMA1_IRQ                   (3)
+#define XDMA1_MM2S_IRQ              (3)
+#define XDAM2_MM2S_IRQ              (9)
+#define XDAM2_S2MM_IRQ              (10)
 
 #define XDMA0_BASE                  (0x41E00000)
 #define XDMA1_BASE                  (0x41E10000)
+#define XDAM2_BASE                  (0x41E20000)
 
 #define XDMA1                       ((xsgdma_t *) XDMA1_BASE)
+#define XDMA2                       ((xsgdma_t *) XDAM2_BASE)
+
 #define XDMA0                       ((xdirectdma_t *) XDMA0_BASE)
 
 #define XDMA0_MM2S                  ((xdirectdma_ch_t *) XDMA0_BASE)
@@ -269,7 +274,7 @@ void _xdma_start(void) {
 
     while((XDMA1 -> mm2s.cr).reset) { }
 
-    _xintc_enableIRQ(XDMA1_IRQ, onxDMA1_irq);
+    _xintc_enableIRQ(XDMA1_MM2S_IRQ, onxDMA1_irq);
 }
 
 volatile void const* _xdma_mm2s_simple(void const* mem, const size_t len) {
