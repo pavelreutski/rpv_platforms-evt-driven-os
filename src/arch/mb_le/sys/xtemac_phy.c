@@ -1,13 +1,34 @@
+#include <stddef.h>
+#include <stdlib.h>
+
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "kernel_stdio.h"
+
 #include "sys/xtemac_phy.h"
 
-#define XTEMAC_BASE                     (0x44A60000)
+#define XTEMAC_BASE                             (0x44A60000)
 
-#define XTEMAC_PHY_BASE                 (XTEMAC_BASE + 0x500)
+#define XTEMAC_PHY_BASE                         (XTEMAC_BASE + 0x500)
 
-#define XTEMAC_PHY                      ((xtemac_phy_mdio_t *) XTEMAC_PHY_BASE)
+#define XTEMAC_PHY                              ((xtemac_phy_mdio_t *) XTEMAC_PHY_BASE)
+
+#define XTEMAC_MDIO_WRITE                       (0x01) /* read register operation */
+#define XTEMAC_MDIO_READ                        (0x02) /* write register operation */
+
+#define XTEMAC_MDIO_PHY_ADDR                    (0x01) /* PHY MDIO addr */
+#define XTEMAC_MDIO_CLOCK_DIV                   (0x14) /* PHY MDIO clk divide calib */
+
+#define XTEMAC_MDIO_BMCR                        (0) /* basic mode control register */
+#define XTEMAC_MDIO_BMSR                        (1) /* basic mode status register */
+#define XTEMAC_MDIO_ID1                         (2) /* phy id 1 register */
+#define XTEMAC_MDIO_ID2                         (3) /* phy id 2 register */
+
+#define XTEMAC_MDIO_LAN8720A_MCRSR              (17) /* lan8720a mode control/status register */
+#define XTEMAC_MDIO_LAN8720A_SM                 (18) /* lan8720a special modes register */
+#define XTEMAC_MDIO_LAN8720A_ISR                (29) /* lan8720a irq status register */
+#define XTEMAC_MDIO_LAN8720A_IMR                (30) /* lan8720a irq mask register */
 
 /********************************** PHY registers ***************************************/
 
@@ -140,7 +161,7 @@ union phy_reg_u {
     
     volatile struct phy_bmcr_s bmcr;         /* Index 0 */
     volatile struct phy_bmsr_s bmsr;         /* Index 1 */
-    volatile struct phyid2_s id1;            /* Index 3 */
+    volatile struct phyid2_s id1;            /* Index 2 (id_1) Index 3 (id_2) */
     volatile struct lan8720a_mcrsr_s mcrscr; /* Index 17 */
     volatile struct lan8720a_sm_s smr;       /* Index 18 */
     volatile struct lan8720a_isr_s isr;      /* Index 29 */
@@ -228,8 +249,8 @@ struct xtemac_phy_mdio_s {
 
     union xtemac_mdio_setup_word_u stp;   /* 0x000 */
     union xtemac_mdio_control_word_u cr;  /* 0x004 */
-    union xtemac_mdio_write_data_u wdata; /* 0x008 */
-    union xtemac_mdio_read_data_u rdata;  /* 0x00C */
+    union xtemac_mdio_write_data_u wdr;   /* 0x008 */
+    union xtemac_mdio_read_data_u rdr;    /* 0x00C */
 };
 
 /* XTEMAC MDIO type definitions */
@@ -259,16 +280,42 @@ typedef union lan8720a_mcrsr_u lan8720a_mcrsr_t;
 
 typedef union phy_reg_u phy_reg_t;
 
-void xtemac_phy(void) {
+void _xtemac_phy(void) {
 
+    xtemac_mdio_setup_t mdio_setup = { 0 };
+
+    mdio_setup.mdio_enable = true;
+    mdio_setup.clock_divide = XTEMAC_MDIO_CLOCK_DIV;
+
+    (XTEMAC_PHY -> stp).reg = mdio_setup.reg;    
 }
 
-bool xtemac_phylink(void) {
+bool _xtemac_phylink(void) {
     return false;
 }
 
-void xtemac_phyid(char *s, const uint8_t len) {
+uint32_t _xtemac_phyid(void) {
 
-    (void) s;
-    (void) len;
+    xtemac_mdio_control_t mdio_cr = { 0 };
+
+    mdio_cr.initiate = true;
+
+    mdio_cr.op = XTEMAC_MDIO_READ;
+    mdio_cr.phy_addr = XTEMAC_MDIO_PHY_ADDR;
+    mdio_cr.phy_reg_addr = XTEMAC_MDIO_ID1;
+
+    (XTEMAC_PHY -> cr).reg = mdio_cr.reg;
+
+    while(!(XTEMAC_PHY -> rdr).mdio_ready) { };
+
+    uint32_t phy_id1 = (XTEMAC_PHY -> rdr).rdata;
+
+    mdio_cr.phy_reg_addr = XTEMAC_MDIO_ID2;
+    (XTEMAC_PHY -> cr).reg = mdio_cr.reg;
+
+    while(!(XTEMAC_PHY -> rdr).mdio_ready) { };
+
+    uint32_t phy_id2 = (XTEMAC_PHY -> rdr).rdata;
+
+    return ((phy_id2 << 19) | (phy_id1 << 3));
 }

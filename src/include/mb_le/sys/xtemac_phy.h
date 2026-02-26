@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-void xtemac_phy(void);
+void _xtemac_phy(void);
 
-bool xtemac_phylink(void);
-void xtemac_phyid(char *s, const uint8_t len);
+bool _xtemac_phylink(void);
+uint32_t _xtemac_phyid(void);

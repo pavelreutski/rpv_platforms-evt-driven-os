@@ -3,6 +3,7 @@
 #include "sys/xdma.h"
 #include "sys/xintc.h"
 #include "sys/xuart.h"
+#include "sys/xtemac.h"
 #include "sys/rtmsure.h"
 
 #include "kernel_fio.h"
@@ -22,6 +23,7 @@ int main(void) {
     _mb_dcache_enable();
 
     _xdma_start();
+    _xtemac_start();
     _rtmsure_start();
     _xuartlite_start();
 

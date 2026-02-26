@@ -310,11 +310,11 @@ typedef union xtemac_legacy_pause_refresh_u xtemac_legacy_pause_refresh_t;
 typedef union xtemac_identifier_u xtemac_id_t;
 typedef union xtemac_ability_u xtemac_ability_t;
 
-void xtemac_start(void) {
-    xtemac_phy();
+void _xtemac_start(void) {
+    _xtemac_phy();
 }
 
-void xtemac_id(char *s, const uint8_t len) {
+void _xtemac_id(char *s, const uint8_t len) {
 
     (void) s;
     (void) len;
