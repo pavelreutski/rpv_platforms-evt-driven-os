@@ -228,22 +228,6 @@ union xtemac_ability_u {
     };
 };
 
-union xtemac_ic_u {
-
-    uint32_t reg;
-
-    struct {
-
-        uint32_t mdioc_irq   : 1;  /* Bit 0 : MDIO I/O completed irq */
-
-        uint32_t tx_ptp_irq  : 1;  /* Bit 1 : tx ptp irq */
-        uint32_t rx_ptp_irq  : 1;  /* Bit 2 : rx ptp irq */
-        uint32_t tmr_ptp_irq : 1;  /* Bit 3 : timer ptp irq */
-
-        uint32_t reserved    : 28; /* Bit 4-31: reserved*/
-    };
-};
-
 /* XTEMAC */
 
 struct xtemac_s {
@@ -268,31 +252,11 @@ struct xtemac_s {
 
     volatile union xtemac_identifier_u id;                             /* 0x4F8 */
     volatile union xtemac_ability_u ability;                           /* 0x4FC */
-
-    /* MDIO */
-
-    volatile uint32_t phy[4];                                          /* 0x500 - 0x50C */
-
-    /************************************************/
-
-    volatile uint32_t r2[60];                                          /* 0x510 - 0x5FC */
-    volatile union xtemac_ic_u isr;                                    /* 0x600 */
-
-    volatile uint32_t r3[3];                                           /* 0x604 - 0x60C */
-    volatile union xtemac_ic_u ipr;                                    /* 0x610 */
-
-    volatile uint32_t r4[3];                                           /* 0x614 - 0x61C */
-    volatile union xtemac_ic_u ier;                                    /* 0x620 */
-
-    volatile uint32_t r5[3];                                           /* 0x624 - 0x62C */
-    volatile union xtemac_ic_u icr;                                    /* 0x630 */
 };
 
 /* XTEMAC type definitions */
 
 typedef struct xtemac_s xtemac_t;
-
-typedef union xtemac_ic_u xtemac_intc_t;
 
 typedef union xtemac_rx_cfg_word1_u xtemac_rx_cfg_w1_t;
 

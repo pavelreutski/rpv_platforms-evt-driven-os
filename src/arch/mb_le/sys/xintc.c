@@ -59,28 +59,21 @@ void _xintc_start(void) {
 
 void _xintc_disableIRQ(const uint8_t irq) {
 
-    XINTC -> cie = XINTC_INT(irq);
+    XINTC -> cie = XINTC_INT(irq);                /* disable IRQ */
     while(((XINTC -> ier) & XINTC_INT(irq))) { }  /* await irq disabled */
 }
 
 void _xintc_enableIRQ(const uint8_t irq, void (*const isr)(void)) {
 
-    XINTC -> cie = XINTC_INT(irq);                /* disable IRQ */
-    while(((XINTC -> ier) & XINTC_INT(irq))) { }  /* await irq disabled */
+    uintptr_t isr_addr = (uintptr_t) isr;
 
-    (XINTC -> imr) |= XINTC_INT(irq);             /* set fast interrupt mode */
-
-    uint32_t isr_addr = (uint32_t) isr;
-
-    if (isr_addr != 0) {
-        XINTC -> ivar[irq] = isr_addr;            /* set isr address */
-    } else {
-        isr_addr = XINTC -> ivar[irq];            /* read isr address */
+    if (isr_addr == 0) {
+        return;
     }
 
-    if (isr_addr != 0) {
+    (XINTC -> imr) |= XINTC_INT(irq);      /* set fast interrupt mode */
+    (XINTC -> ivar)[irq] = isr_addr;       /* set isr address */
 
-        XINTC -> sie = XINTC_INT(irq);                /* enable IRQ */
-        while(!((XINTC -> ier) & XINTC_INT(irq))) { } /* await irq enabled */
-    }
+    (XINTC -> sie) = XINTC_INT(irq);              /* enable IRQ */
+    while(!((XINTC -> ier) & XINTC_INT(irq))) { } /* await irq enabled */
 }

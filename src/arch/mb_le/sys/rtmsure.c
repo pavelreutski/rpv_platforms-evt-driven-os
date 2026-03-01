@@ -36,6 +36,8 @@ static __attribute__((fast_interrupt)) void onRtmsure_irq(void);
 void _rtmsure_start(void) {
 
     bcd_time = -1;
+
+    _xintc_disableIRQ(RTMSURE_IRQ);
     _xintc_enableIRQ(RTMSURE_IRQ, onRtmsure_irq);
 }
 

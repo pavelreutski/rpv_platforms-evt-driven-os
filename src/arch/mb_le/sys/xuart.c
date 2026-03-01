@@ -73,6 +73,9 @@ static __attribute__((fast_interrupt)) void onxUart0_irq(void);
 
 void _xuartlite_start(void) {
 
+    _xintc_disableIRQ(XUART0_IRQ);
+    _xintc_enableIRQ(XUART0_IRQ, onxUart0_irq);
+
     volatile xuartlite_ctrl_t uart_cr = { 0 };
 
     uart_cr.rst_rxfifo = true;
@@ -81,8 +84,6 @@ void _xuartlite_start(void) {
     uart_cr.enable_irq = true;
 
     (XUART0 -> cr.reg) = uart_cr.reg;
-
-    _xintc_enableIRQ(XUART0_IRQ, onxUart0_irq);
 }
 
 char _xuartlite_read(void) {

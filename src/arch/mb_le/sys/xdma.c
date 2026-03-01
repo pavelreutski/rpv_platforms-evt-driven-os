@@ -260,6 +260,9 @@ static uintptr_t xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, volatile const
 
 void _xdma_start(void) {
 
+    _xintc_disableIRQ(XDMA1_MM2S_IRQ);
+    _xintc_enableIRQ(XDMA1_MM2S_IRQ, onxDMA1_irq);
+
     /* reset both mm2s & s2mm engines */
 
     (XDMA0 -> mm2s.cr).reset = true;
@@ -273,8 +276,6 @@ void _xdma_start(void) {
     while((XDMA0 -> s2mm.cr).reset) { }
 
     while((XDMA1 -> mm2s.cr).reset) { }
-
-    _xintc_enableIRQ(XDMA1_MM2S_IRQ, onxDMA1_irq);
 }
 
 volatile void const* _xdma_mm2s_simple(void const* mem, const size_t len) {
