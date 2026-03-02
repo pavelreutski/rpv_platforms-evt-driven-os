@@ -34,9 +34,20 @@
 #define XTEMAC_MDIO_LAN8720A_SM                 (18) /* lan8720a special modes register */
 #define XTEMAC_MDIO_LAN8720A_ISR                (29) /* lan8720a irq status register */
 #define XTEMAC_MDIO_LAN8720A_IMR                (30) /* lan8720a irq mask register */
+#define XTEMAC_MDIO_LAN8720A_SCSR               (31) /* lan8720a special control/status register */
 
 #define XTEMAC_PHY_HALF_DUPLEX                  (0)  /* PHY half duplex mode  */
 #define XTEMAC_PHY_FULL_DUPLEX                  (1)  /* PHY full duplex link mode */
+
+/********************************* PHY data def *****************************************/
+
+typedef enum
+{
+    LAN8720_10M_HALF  = 0b001,
+    LAN8720_10M_FULL  = 0b101,
+    LAN8720_100M_HALF = 0b010,
+    LAN8720_100M_FULL = 0b110
+} lan8720_speed_t;
 
 /********************************** PHY registers ***************************************/
 
@@ -169,6 +180,21 @@ typedef struct lan8720a_imr_s {
 
 } lan8720a_imr_t;
 
+// lan8720a index 31 register
+
+typedef struct lan8720a_scsr_s {
+
+    uint16_t reserved0_1   : 2;  /* Bits 0–1   : Reserved */
+    uint16_t hcd_speed     : 3;  /* Bits 2–4   : Speed Indication
+                                     001 = 10M Half
+                                     101 = 10M Full
+                                     010 = 100M Half
+                                     110 = 100M Full */
+    uint16_t reserved5_14  : 10; /* Bits 5–14  : Reserved */
+    uint16_t autoneg_done  : 1;  /* Bit 15     : Auto-Negotiation Done */
+
+} lan8720a_scsr_t;
+
 typedef union phy_reg_u {
 
     volatile uint16_t reg;
@@ -180,6 +206,7 @@ typedef union phy_reg_u {
     volatile struct lan8720a_sm_s smr;       /* Index 18 */
     volatile struct lan8720a_isr_s isr;      /* Index 29 */
     volatile struct lan8720a_imr_s imr;      /* Index 30 */
+    volatile struct lan8720a_scsr_s scsr;    /* Index 31 */
 
 } phy_reg_t;
 
@@ -363,13 +390,43 @@ bool _xtemac_phylinkSgl(void) {
     return link_sig;
 }
 
-bool _xtemac_phylink(void) {
+bool _xtemac_phylink(phylink_t *lk) {
+
+    if (lk == NULL) {
+        return false;
+    }
 
     volatile phy_reg_t phy = { 0 };
     read_phyReg(XTEMAC_MDIO_PHY_BMSR, (uint16_t *) &phy);
 
     bool linkstatus = 
         phy.bmsr.link_satus && phy.bmsr.autoneg_cmplt;
+
+    read_phyReg(XTEMAC_MDIO_LAN8720A_SCSR, (uint16_t *) &phy);
+
+    if (!linkstatus) {
+        return linkstatus;
+    }
+
+    switch (phy.scsr.hcd_speed) {
+
+        case LAN8720_10M_FULL:
+        case LAN8720_100M_FULL: {
+            
+            lk -> link = LINK_FULL_DUPLEX;
+            lk -> speed = (phy.scsr.hcd_speed == LAN8720_10M_FULL) ? SPEED_10MBPS : SPEED_100MBPS;
+        } break;
+
+        case LAN8720_10M_HALF:
+        case LAN8720_100M_HALF: {
+
+            lk -> link = LINK_HALF_DUPLEX;
+            lk -> speed = (phy.scsr.hcd_speed == LAN8720_10M_HALF) ? SPEED_10MBPS : SPEED_100MBPS;
+        } break;
+    
+        default:
+            break;
+    }
 
     link_sig = false;
     return linkstatus;

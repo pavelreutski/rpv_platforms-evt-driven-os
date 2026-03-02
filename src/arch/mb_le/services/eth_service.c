@@ -16,18 +16,16 @@ enum ethcon_status_u : uint8_t {
     ETH_LINKDOWN
 };
 
+static phylink_t phylink = { 0 };
 static uint8_t link_reg = ETH_LINKDOWN;
 
 static void eth_service(void);
-
-static int ethphyreg_m(const int argc, const char** argv);
 
 static int ethphy_m(const int argc, const char** argv);
 static int ethlink_m(const int argc, const char** argv);
 
 _SHELL_COMMAND(ethphy, ethphy_m);
 _SHELL_COMMAND(ethlink, ethlink_m);
-_SHELL_COMMAND(ethphyreg, ethphyreg_m);
 
 _SERVICE(eth_svc, eth_service);
 
@@ -46,32 +44,9 @@ static void eth_service(void) {
     }
 
     link_reg = 
-        _xtemac_phylink() ? ETH_LINKUP : ETH_LINKDOWN;
+        _xtemac_phylink(&phylink) ? ETH_LINKUP : ETH_LINKDOWN;
 
     _kernel_sigprocmask(SIG_UNBLOCK, &sigint, NULL);
-}
-
-static int ethphyreg_m(const int argc, const char** argv) {
-
-    if (argc != 2) {
-
-        _kernel_outString("phy reg addr required\n");
-        return -1;
-    }
-
-    char *p;
-    uint8_t regaddr = (uint8_t) strtoul(argv[1], &p, 10);
-
-    if (*p != '\0') {
-
-        _kernel_outString("inv reg addr\n");
-        return -1;
-    }
-
-    uint16_t regv = _xtemac_phyreg(regaddr);
-    _kernel_outStringFormat("rega: %d, regv: 0x%02x\n",(int)regaddr, (unsigned)regv);
-
-    return 0;
 }
 
 static int ethlink_m(const int argc, const char** argv) {
@@ -82,11 +57,17 @@ static int ethlink_m(const int argc, const char** argv) {
     switch (link_reg) {
 
         case ETH_LINKUP: {
-            _kernel_outString("eth link up\n");
+
+            _kernel_outString("link up\n");
+
+            _kernel_outStringFormat("speed: %s\n", 
+                phylink.speed == SPEED_10MBPS ? "10 Mbps" : "100 Mbps");
+            _kernel_outStringFormat("duplex: %s\n",
+                phylink.link == LINK_HALF_DUPLEX ? "half" : "full");            
         } break;
 
         case ETH_LINKDOWN: {
-            _kernel_outString("eth link down\n");
+            _kernel_outString("cable not plugged or link down\n");
         } break;
     
         default:
@@ -105,15 +86,15 @@ static int ethphy_m(const int argc, const char** argv) {
 
     if (phy_id == 0) {
 
-        _kernel_outString("No eth PHY detected.\n");
+        _kernel_outString("eth PHY not detected.\n");
         return -1;
     }
 
     uint16_t phyid_hi = (phy_id >> 16);
     uint16_t phyid_low = (phy_id & 0xFFFF);
 
-    _kernel_outStringFormat("\nID1 : %04x\nID2 : %04x\n\n", phyid_hi, phyid_low);
-    _kernel_outStringFormat("PHY %04x:%04x\n", phyid_hi, phyid_low);
+    _kernel_outString("eth PHY detected\n");
+    _kernel_outStringFormat("PHYid %04x:%04x\n", phyid_hi, phyid_low);
 
     return 0;
 }
