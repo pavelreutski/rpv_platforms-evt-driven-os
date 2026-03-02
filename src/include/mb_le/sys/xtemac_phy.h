@@ -27,8 +27,7 @@ typedef struct {
 void _xtemac_phy(void);
 void _xtemac_phyReset(void);
 
-bool _xtemac_phylinkSgl(void);
+bool _xtemac_phylinkSignal(void);
 bool _xtemac_phylink(phylink_t *lk);
 
 uint32_t _xtemac_phyid(void);
-uint16_t _xtemac_phyreg(uint8_t addr);

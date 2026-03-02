@@ -338,12 +338,6 @@ static __attribute__((fast_interrupt)) void on_phyIRQ(void);
 static bool read_phyReg(uint8_t addr, uint16_t *regv);
 static bool write_phyReg(uint8_t addr, const uint16_t regv);
 
-uint16_t _xtemac_phyreg(uint8_t addr) {
-    uint16_t regv;
-    read_phyReg(addr, &regv);
-    return regv;
-}
-
 void _xtemac_phy(void) {
 
     link_sig = false;
@@ -386,7 +380,7 @@ void _xtemac_phyReset(void) {
     } while(phy.bmcr.reset); // wait for reset done
 }
 
-bool _xtemac_phylinkSgl(void) {
+bool _xtemac_phylinkSignal(void) {
     return link_sig;
 }
 
@@ -396,17 +390,23 @@ bool _xtemac_phylink(phylink_t *lk) {
         return false;
     }
 
+    volatile bool linksig = link_sig;
+
+    if (linksig) {
+        link_sig = false;
+    }
+
     volatile phy_reg_t phy = { 0 };
     read_phyReg(XTEMAC_MDIO_PHY_BMSR, (uint16_t *) &phy);
 
     bool linkstatus = 
-        phy.bmsr.link_satus && phy.bmsr.autoneg_cmplt;
-
-    read_phyReg(XTEMAC_MDIO_LAN8720A_SCSR, (uint16_t *) &phy);
+        (phy.bmsr.link_satus) && (phy.bmsr.autoneg_cmplt);
 
     if (!linkstatus) {
         return linkstatus;
     }
+
+    read_phyReg(XTEMAC_MDIO_LAN8720A_SCSR, (uint16_t *) &phy);
 
     switch (phy.scsr.hcd_speed) {
 
@@ -428,7 +428,6 @@ bool _xtemac_phylink(phylink_t *lk) {
             break;
     }
 
-    link_sig = false;
     return linkstatus;
 }
 

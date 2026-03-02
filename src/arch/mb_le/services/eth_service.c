@@ -39,7 +39,7 @@ static void eth_service(void) {
 
     _kernel_sigpending(&sigint);
 
-    if (!_kernel_sigismember(&sigint, SIGINT) || !_xtemac_phylinkSgl()) {
+    if (!_kernel_sigismember(&sigint, SIGINT) || !_xtemac_phylinkSignal()) {
         return;
     }
 
