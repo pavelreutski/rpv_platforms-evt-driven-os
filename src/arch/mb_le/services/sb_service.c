@@ -65,6 +65,8 @@ typedef struct wavfile_s wavfile_t;
 static int fd;
 
 static uint8_t sb_reg;
+
+static size_t sb_playsize;
 static size_t sb_playcount;
 
 static void sb_service(void);
@@ -81,7 +83,9 @@ static void sb_service(void) {
 
             fd = -1;
 
+            sb_playsize = 0;
             sb_playcount = 0;
+
             sb_reg = SB_IDLE;
 
         } break;
@@ -93,10 +97,11 @@ static void sb_service(void) {
             if (fd < 0) {
                 return; /* no file to playback */
             }
-
+            
+            sb_playcount++; // add prerecord tape
             sb_reg = SB_WAIT;
 
-            if (_xdma_mm2s_sgcyclic(SB_S_SAMPLE, 
+            if (_xdma1_mm2s_sgcyclic(SB_S_SAMPLE, 
                     SB_MAX_BUFFER, SB_BUFF_CHUNK) == NULL) {
                 
                 sb_reg = SB_CLOSE;
@@ -115,21 +120,31 @@ static void sb_service(void) {
             _kernel_sigaddset(&sgls, SIGINT);
             _kernel_sigaddset(&sgls, SIGBUS);
 
-            int sgl;
-            _kernel_sigwait(&sgls, &sgl);
+            _kernel_sigprocmask(SIG_BLOCK, &sgls, NULL);
+
+            _kernel_sigpending(&sgls); // poll pending signals
+
+            if (!_kernel_sigismember(&sgls, SIGINT) && 
+                    !_kernel_sigismember(&sgls, SIGBUS)) { // SIGINT nor SIGBUS ?
+                return;
+            }        
+
+            bool sb_sgl = _xdma1_mm2s_sgbuserrSignal() || _xdma1_mm2s_sgcmpltSignal();
             
-            if (sgl == SIGBUS) {
+            if (sb_sgl && _xdma1_mm2s_sgbuserrSignal()) {
 
                 sb_reg = SB_CLOSE;
                 _kernel_jentry("sb_svc: DMA bus error occured");
 
-            } else if (_xdma_mm2s_sgcmpltSignal()) {
+            } else if (sb_sgl && _xdma1_mm2s_sgcmpltSignal()) {
 
                 sb_reg = SB_WRITE;
 
                 sb_playcount--;
                 sb_service();
+            }
 
+            if (sb_sgl) {
                 _kernel_sigprocmask(SIG_UNBLOCK, &sgls, NULL);
             }
 
@@ -141,7 +156,7 @@ static void sb_service(void) {
 
             /* sb write */
 
-            void *buffer = _xdma_mm2s_sgcmplt(SB_BUFF_CHUNK);
+            void *buffer = _xdma1_mm2s_sgcmplt(SB_BUFF_CHUNK);
 
             if (buffer == NULL) {
 
@@ -152,8 +167,12 @@ static void sb_service(void) {
 
                 return;
             }
-                             
-            size_t n_read = fat_fread(fd, buffer, SB_BUFF_CHUNK);
+            
+            size_t readsize = 
+                sb_playsize > SB_BUFF_CHUNK ? SB_BUFF_CHUNK : sb_playsize;
+
+            size_t n_read = fat_fread(fd, buffer, readsize);
+            sb_playsize -= n_read;
 
             if (n_read == 0) {            
 
@@ -166,7 +185,7 @@ static void sb_service(void) {
 
                     return;
                 }
-
+                
                 memset(buffer, SB_S_SAMPLE, SB_BUFF_CHUNK);
 
             } else if(n_read < SB_BUFF_CHUNK) {
@@ -186,7 +205,7 @@ static void sb_service(void) {
             /* close play file */
             fat_fclose(fd);
             /* stop dma */
-            _xdma_mm2s_sgstop();
+            _xdma1_mm2s_sgstop();
 
             _kernel_jentry("sb_svc: play file closed and DMA stopped");
 
@@ -254,7 +273,9 @@ static int sb_m(const int argc, const char **argv) {
     _kernel_outString("playing...\n");
 
     fd = ifd;
+
     sb_playcount = playcount;
+    sb_playsize = samples_size;
     
     return 0;
 }

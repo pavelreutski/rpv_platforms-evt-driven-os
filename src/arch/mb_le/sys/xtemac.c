@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "sys/xdma.h"
 #include "sys/xtemac.h"
 #include "sys/xtemac_phy.h"
 
@@ -263,7 +264,7 @@ typedef union xtemac_rx_cfg_word1_u xtemac_rx_cfg_w1_t;
 typedef union xtemac_tx_cfg_word_u xtemax_tx_cfg_t;
 typedef union xtemac_flow_ctl_cfg_word_u xtemac_flow_ctl_cfg_t;
 
-typedef union xtemac_speed_cfg_word_u xtemax_speed_cfg_t;
+typedef union xtemac_speed_cfg_word_u xtemac_speed_cfg_t;
 
 typedef union xtemac_rx_max_frame_cfg_word_u xtemac_rx_max_frame_cfg_t;
 typedef union xtemac_tx_max_frame_cfg_word_u xtemax_tx_max_frame_cfg_t;
@@ -275,7 +276,59 @@ typedef union xtemac_identifier_u xtemac_id_t;
 typedef union xtemac_ability_u xtemac_ability_t;
 
 void _xtemac_start(void) {
+
     _xtemac_phy();
+
+    (XTEMAC -> rx_cfg_w1).reset = 1;
+    while((XTEMAC -> rx_cfg_w1).reset) { }
+
+    (XTEMAC -> tx_cfg).reset = 1;
+    while((XTEMAC -> tx_cfg).reset) { }
+
+    (XTEMAC -> tx_cfg).transmit_enable = false;
+    (XTEMAC -> rx_cfg_w1).receiver_enable = false;
+
+    _xdma2_s2mm_sgcyclic(15360, 1536);
+}
+
+void _xtemac_rxdisable(void) {
+
+    (XTEMAC -> tx_cfg).transmit_enable = false;
+    (XTEMAC -> rx_cfg_w1).receiver_enable = false;
+}
+
+void _xtemac_rxenable(void) {
+
+    phylink_t phy;
+    if (!_xtemac_phylink(&phy)) { /* No link */
+        return;
+    }
+
+    xtemac_rx_max_frame_cfg_t rx_cfg = { 0 };
+
+    rx_cfg.rx_max_frame_en = true;
+    rx_cfg.rx_max_frame_len = 1536;
+
+    xtemac_rx_cfg_w1_t rx = { 0 };
+
+    rx.vlan_enable = true;
+    rx.receiver_enable = true;
+    rx.ctrl_len_chk_dis = true;
+    rx.len_type_chk_dis = true;
+    rx.inband_fcs_enable = false;
+    rx.jumbo_frame_enable = false;
+
+    rx.half_duplex = (phy.link == LINK_HALF_DUPLEX);
+    
+    xtemac_speed_cfg_t mac_cfg = { 0 };
+
+    mac_cfg.mac_speed = 
+        (phy.speed == SPEED_10MBPS) ? XTEMAC_10MBPS_SPEED : XTEMAC_100MPBS_SPEED;
+
+    (XTEMAC -> speed_cfg).reg = mac_cfg.reg;
+    (XTEMAC -> rx_maxFrame_cfg).reg = rx_cfg.reg;
+
+    (XTEMAC -> rx_cfg_w1).reg = rx.reg;
 }
 
 void _xtemac_id(char *s, const uint8_t len) {
