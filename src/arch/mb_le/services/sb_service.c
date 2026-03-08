@@ -101,7 +101,7 @@ static void sb_service(void) {
             sb_playcount++; // add prerecord tape
             sb_reg = SB_WAIT;
 
-            if (_xdma1_mm2s_sgcyclic(SB_S_SAMPLE, 
+            if (_sbdma_sgcyclic(SB_S_SAMPLE, 
                     SB_MAX_BUFFER, SB_BUFF_CHUNK) == NULL) {
                 
                 sb_reg = SB_CLOSE;
@@ -129,14 +129,14 @@ static void sb_service(void) {
                 return;
             }        
 
-            bool sb_sgl = _xdma1_mm2s_sgbuserrSignal() || _xdma1_mm2s_sgcmpltSignal();
+            bool sb_sgl = _sbdma_sgbuserrSignal() || _sbdma_sgcmpltSignal();
             
-            if (sb_sgl && _xdma1_mm2s_sgbuserrSignal()) {
+            if (sb_sgl && _sbdma_sgbuserrSignal()) {
 
                 sb_reg = SB_CLOSE;
                 _kernel_jentry("sb_svc: DMA bus error occured");
 
-            } else if (sb_sgl && _xdma1_mm2s_sgcmpltSignal()) {
+            } else if (sb_sgl && _sbdma_sgcmpltSignal()) {
 
                 sb_reg = SB_WRITE;
 
@@ -156,7 +156,7 @@ static void sb_service(void) {
 
             /* sb write */
 
-            void *buffer = _xdma1_mm2s_sgcmplt(SB_BUFF_CHUNK);
+            void *buffer = _sbdma_sgcmplt(SB_BUFF_CHUNK);
 
             if (buffer == NULL) {
 
@@ -205,7 +205,7 @@ static void sb_service(void) {
             /* close play file */
             fat_fclose(fd);
             /* stop dma */
-            _xdma1_mm2s_sgstop();
+            _sbdma_sgstop();
 
             _kernel_jentry("sb_svc: play file closed and DMA stopped");
 

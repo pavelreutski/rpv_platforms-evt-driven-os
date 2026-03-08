@@ -67,7 +67,7 @@ bool _rsdcard_read(void *mem, size_t sector, const size_t count) {
     volatile void const* io_buffer;
     const size_t m_len = (count * SDCARD_SECTOR_SIZE);
 
-    io_buffer = _xdma_s2mm_simple(m_len);
+    io_buffer = _sdcdma_read(m_len);
 
     if (io_buffer == NULL) {
         return false;
@@ -105,8 +105,7 @@ bool _rsdcard_write(void const* mem, size_t sector, const size_t count) {
         return false;
     }
 
-    if (_xdma_mm2s_simple(mem, 
-            (count * SDCARD_SECTOR_SIZE)) == NULL) {
+    if (_sdcdma_write(mem, (count * SDCARD_SECTOR_SIZE)) == NULL) {
         return false;
     }
 

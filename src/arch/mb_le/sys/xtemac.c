@@ -10,6 +10,11 @@
 
 #define XTEMAC                          ((xtemac_t *) XTEMAC_REG_BASE)
 
+#define XTEMAC_IO_QUEUE                 (10)
+#define XTEMAC_MAX_FRAME                (1536)
+
+#define XTEMAC_IO_BUFFER                (XTEMAC_MAX_FRAME * XTEMAC_IO_QUEUE)
+
 enum xtemac_speed_u : uint8_t {
 
     XTEMAC_10MBPS_SPEED  = 0x00,
@@ -288,26 +293,21 @@ void _xtemac_start(void) {
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
 
-    _xdma2_s2mm_sgcyclic(15360, 1536);
+    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
 }
 
-void _xtemac_rxdisable(void) {
+void _xtemac_trxdisable(void) {
 
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
 }
 
-void _xtemac_rxenable(void) {
+void _xtemac_trxenable(void) {
 
     phylink_t phy;
     if (!_xtemac_phylink(&phy)) { /* No link */
         return;
     }
-
-    xtemac_rx_max_frame_cfg_t rx_cfg = { 0 };
-
-    rx_cfg.rx_max_frame_en = true;
-    rx_cfg.rx_max_frame_len = 1536;
 
     xtemac_rx_cfg_w1_t rx = { 0 };
 
@@ -319,6 +319,11 @@ void _xtemac_rxenable(void) {
     rx.jumbo_frame_enable = false;
 
     rx.half_duplex = (phy.link == LINK_HALF_DUPLEX);
+
+    xtemac_rx_max_frame_cfg_t rx_cfg = { 0 };
+
+    rx_cfg.rx_max_frame_en = true;
+    rx_cfg.rx_max_frame_len = XTEMAC_MAX_FRAME;
     
     xtemac_speed_cfg_t mac_cfg = { 0 };
 
@@ -329,10 +334,4 @@ void _xtemac_rxenable(void) {
     (XTEMAC -> rx_maxFrame_cfg).reg = rx_cfg.reg;
 
     (XTEMAC -> rx_cfg_w1).reg = rx.reg;
-}
-
-void _xtemac_id(char *s, const uint8_t len) {
-
-    (void) s;
-    (void) len;
 }

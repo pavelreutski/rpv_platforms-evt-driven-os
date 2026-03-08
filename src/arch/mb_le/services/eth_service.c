@@ -55,7 +55,7 @@ static void eth_service(void) {
         return;
     }
 
-    bool eth_sgl = _xtemac_phylinkSignal() || _xdma2_s2mm_sgcmpltSignal();
+    bool eth_sgl = _xtemac_phylinkSignal() || _ethdma_rxsgcmpltSignal();
 
     if (eth_sgl && _xtemac_phylinkSignal()) {
 
@@ -67,18 +67,18 @@ static void eth_service(void) {
             case ETH_LINKUP: {
 
                 rx_counter = 0;
-                _xtemac_rxenable(); 
+                _xtemac_trxenable(); 
             } break;
 
-            case ETH_LINKDOWN: { _xtemac_rxdisable(); } break;
+            case ETH_LINKDOWN: { _xtemac_trxdisable(); } break;
         
             default: break;
         }
     }
 
-    if (eth_sgl && _xdma2_s2mm_sgcmpltSignal()) {
+    if (eth_sgl && _ethdma_rxsgcmpltSignal()) {
 
-        if (_xdma2_s2mm_sgcmplt(lastp, sizeof(lastp), &lastpsize) != NULL) {            
+        if (_ethdma_rxsgcmplt(lastp, sizeof(lastp), &lastpsize) != NULL) {            
             rx_counter++;
         }
     }
