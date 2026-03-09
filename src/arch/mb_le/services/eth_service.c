@@ -1,5 +1,7 @@
 #include <stdlib.h>
 
+#include "eth_c.h"
+
 #include "monitor.h"
 #include "command.h"
 #include "service.h"
@@ -22,8 +24,6 @@ enum ethcon_status_u : uint8_t {
 static uint8_t lastp[1536];
 static size_t lastpsize;
 
-static uint8_t rx_counter = 0;
-
 static phylink_t phylink = { 0 };
 static uint8_t link_reg = ETH_LINKDOWN;
 
@@ -43,6 +43,9 @@ _SERVICE(eth_svc, eth_service);
 
 static void eth_service(void) {
 
+    /* lookup for inbound traffic - it shall empty rx queue */
+    _ethdma_rxsgcmplt(lastp, sizeof(lastp), &lastpsize);
+
     sigset_t sigint;
 
     _kernel_sigemptyset(&sigint);
@@ -55,8 +58,9 @@ static void eth_service(void) {
         return;
     }
 
-    bool eth_sgl = _xtemac_phylinkSignal() || _ethdma_rxsgcmpltSignal();
-
+    /* poll link or rx complete signals after SIGINT */
+    bool eth_sgl = _xtemac_phylinkSignal() || _ethdma_rxbuserrSignal();
+    
     if (eth_sgl && _xtemac_phylinkSignal()) {
 
         link_reg = 
@@ -64,23 +68,17 @@ static void eth_service(void) {
 
         switch (link_reg) {
 
-            case ETH_LINKUP: {
-
-                rx_counter = 0;
-                _xtemac_trxenable(); 
-            } break;
-
+            case ETH_LINKUP: { _xtemac_trxenable(); } break;
             case ETH_LINKDOWN: { _xtemac_trxdisable(); } break;
         
             default: break;
         }
     }
 
-    if (eth_sgl && _ethdma_rxsgcmpltSignal()) {
+    if (eth_sgl && _ethdma_rxbuserrSignal()) {
 
-        if (_ethdma_rxsgcmplt(lastp, sizeof(lastp), &lastpsize) != NULL) {            
-            rx_counter++;
-        }
+        _xtemac_trxdisable();
+        _xtemac_trxenable();
     }
 
     if (eth_sgl) {
@@ -93,7 +91,7 @@ static int ethpack_m(const int argc, const char** argv) {
     (void) argc;
     (void) argv;
 
-    if (rx_counter == 0) {
+    if (eth_rxcount() == 0) {
 
         _kernel_outString("tail no frames received\n");
         return 0;
@@ -116,13 +114,28 @@ static int ethstat_m(const int argc, const char** argv) {
     (void) argc;
     (void) argv;
 
-    if (rx_counter == 0) {
+    eth_counter_t rx_c = eth_rxcount();
+    eth_counter_t tx_c = eth_txcount();
+    eth_counter_t lost_c = eth_lostcount();
+
+    eth_counter_t rx_qhead = eth_rxqhead();
+    eth_counter_t rx_qtail = eth_rxqtail();
+
+    eth_counter_t tx_qhead = eth_txqhead();
+    eth_counter_t tx_qtail = eth_txqtail();
+
+    if (rx_c == 0) {
 
         _kernel_outString("no ethernet frames received\n"); 
         return 0;       
     }
 
-    _kernel_outStringFormat("ethernet packet stat: %d received, %d transmitted, %d lost\n", (int)rx_counter, 0, 0);
+    _kernel_outString("ethernet stat\n");
+
+    _kernel_outStringFormat("rx queue: %d head, %d tail\n", (int)rx_qhead, (int)rx_qtail);
+    _kernel_outStringFormat("tx queue: %d head, %d tail\n", (int)tx_qhead, (int)tx_qtail);
+    _kernel_outStringFormat("packet: %d received, %d transmitted, %d lost\n", (int)rx_c, (int)tx_c, (int)lost_c);
+    
     return 0;
 }
 

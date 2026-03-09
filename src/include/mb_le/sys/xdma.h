@@ -6,8 +6,8 @@ void _xdma_start(void);
 
 /******************* sdcard DMA ***********************************/
 
-volatile void const* _sdcdma_read(const size_t len);
-volatile void const* _sdcdma_write(void const* mem, const size_t len);
+volatile void const* _sdcdma_rdt(const size_t len);
+volatile void const* _sdcdma_wrt(void const* mem, const size_t len);
 
 /***************** sound blaster DMA ******************************/
 
@@ -22,9 +22,9 @@ volatile void const* _sbdma_sgcyclic(const int seed, const size_t alloc_len, con
 
 /************************ ethernet DMA ****************************/
 
-bool _ethdma_rxsgcmpltSignal(void);
-bool _ethdma_txsgcmpltSignal(void);
+void _ethdma_sgstop(void);
+
+bool _ethdma_rxbuserrSignal(void);
 
 void *_ethdma_rxsgcmplt(void *mem, const size_t mem_len, size_t *const trans_len);
-
 volatile void const* _ethdma_rxsgcyclic(const size_t alloc_len, const size_t io_buff);

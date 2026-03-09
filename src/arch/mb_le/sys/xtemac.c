@@ -292,14 +292,14 @@ void _xtemac_start(void) {
 
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
-
-    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
 }
 
 void _xtemac_trxdisable(void) {
 
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
+
+    _ethdma_sgstop();
 }
 
 void _xtemac_trxenable(void) {
@@ -329,6 +329,8 @@ void _xtemac_trxenable(void) {
 
     mac_cfg.mac_speed = 
         (phy.speed == SPEED_10MBPS) ? XTEMAC_10MBPS_SPEED : XTEMAC_100MPBS_SPEED;
+
+    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
 
     (XTEMAC -> speed_cfg).reg = mac_cfg.reg;
     (XTEMAC -> rx_maxFrame_cfg).reg = rx_cfg.reg;
