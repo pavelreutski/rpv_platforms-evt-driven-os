@@ -22,9 +22,19 @@ volatile void const* _sbdma_sgcyclic(const int seed, const size_t alloc_len, con
 
 /************************ ethernet DMA ****************************/
 
-void _ethdma_sgstop(void);
+/************************ receiver ********************************/
 
 bool _ethdma_rxbuserrSignal(void);
 
 void *_ethdma_rxsgcmplt(void *mem, const size_t mem_len, size_t *const trans_len);
 volatile void const* _ethdma_rxsgcyclic(const size_t alloc_len, const size_t io_buff);
+
+/************************ transmitter *****************************/
+
+bool _ethdma_txbuserrSignal(void);
+bool _ethdma_txsgcmpltSignal(void);
+
+void _ethdma_txsgflush(void);
+
+volatile void const* _ethdma_txsgenque(void const* mem, const size_t mem_len);
+volatile void const* _ethdma_txsgnormal(const size_t alloc_len, const size_t io_buff);

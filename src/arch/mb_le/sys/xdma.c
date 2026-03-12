@@ -293,8 +293,10 @@ typedef struct xsgdma_sig_s {
     volatile bool ethdma_txbuserr : 1; /* Bit 0: SGDMA2 eth tx transaction bus error */    
     volatile bool ethdma_rxbuserr : 1; /* Bit 1: SGDMA2 eth rx transaction bus error */
 
-    volatile bool sbdma_cmplt     : 1; /* Bit 2: SGDMA1 sound blaster transaction completed */
-    volatile bool sbdma_buserr    : 1; /* Bit 3: SGDMA1 sound blaster transaction bus error */
+    volatile bool ethdma_txcmplt  : 1; /* Bit 2: SGDMA2 eth tx transaction completed */
+
+    volatile bool sbdma_cmplt     : 1; /* Bit 3: SGDMA1 sound blaster transaction completed */
+    volatile bool sbdma_buserr    : 1; /* Bit 4: SGDMA1 sound blaster transaction bus error */
 } xsgdma_sigset_t;
 
 typedef unsigned char xsgdma_queue_t;
@@ -308,6 +310,9 @@ static volatile eth_counter_t lostcount;
 static volatile xsgdma_queue_t eth_rxtail;
 static volatile xsgdma_queue_t eth_rxhead;
 
+static volatile xsgdma_queue_t eth_txtail;
+static volatile xsgdma_queue_t eth_txdepth;
+
 static __attribute__((fast_interrupt)) void onsbdma_irq(void);
 
 static __attribute__((fast_interrupt)) void onethdma_txirq(void);
@@ -318,10 +323,14 @@ static bool ethdma_queue(const bool event, volatile xsgdma_queue_t *const pq, vo
 static inline void xsgdma_irqsignal(volatile bool ioe);
 static inline xdmasr_t xsgdma_ackirq(volatile xsgdma_ch_t *t_ch);
 
-static inline bool xsgdma_cyclicAllowed(volatile xsgdma_ch_t *t_ch);
+static inline bool xsgdma_sgallowed(volatile xsgdma_ch_t *t_ch);
 
 static void xsgdma_engstop(volatile xsgdma_ch_t *t_ch);
+
 static void xsgdma_cyclicTrans(volatile xsgdma_ch_t *t_ch, xsgdmadesc_t const* head);
+static void xsgdma_seqTrans(volatile xsgdma_ch_t *t_ch, xsgdmadesc_t const* head, xsgdmadesc_t const* tail);
+
+static void xsgdma_seqRing(xsgdmadesc_t *const head, void *const io_head, const size_t len, const size_t chunk);
 static void xsgdma_cyclicRing(xsgdmadesc_t *const head, void *const io_head, const size_t len, const size_t chunk);
 
 // static bool xsgdma_trans(volatile xsgdma_ch_t *t_ch, volatile const uintptr_t mem, const size_t len);
@@ -331,6 +340,9 @@ void _xdma_start(void) {
 
     eth_rxhead = 
         eth_rxtail = 0;
+
+    eth_txtail =
+        eth_txdepth = 0;
 
     rxcount =
         txcount = lostcount = 0;
@@ -364,7 +376,7 @@ void _xdma_start(void) {
     _xintc_enableIRQ(XDMA2_S2MM_IRQ, onethdma_rxirq);
 }
 
-/***************** ethernet counters **********************/
+/*************************** ethernet counters ********************************/
 
 eth_counter_t eth_rxcount(void) { return rxcount; }
 eth_counter_t eth_txcount(void) { return txcount; }
@@ -388,30 +400,98 @@ eth_counter_t eth_txqhead(void) {
 }
 
 eth_counter_t eth_txqtail(void) {
-    return 0;
+
+    volatile eth_counter_t txtail = eth_txtail;
+    return txtail;
 }
 
-/***************** ethernet DMA ***************************/
+/********************************** ethernet DMA *********************************/
 
-void _ethdma_sgstop(void) {
+bool _ethdma_txbuserrSignal(void) {
+    return sgdma_sgls.ethdma_txbuserr;
+}
 
-    volatile xdmacr_t xdma_cr = { 0 };
-
-    xdma_cr.rs = false;
-    
-    xdma_cr.reset = false;
-    xdma_cr.ioc_irq_en = false;
-    xdma_cr.err_irq_en = false;
-
-    (XDMA2_S2MM-> cr).reg = xdma_cr.reg;
-    while (!(XDMA2_S2MM -> sr).halted) { } // await s2mm halted
-
-    (XDMA2_MM2S -> cr).reg = xdma_cr.reg;
-    while(!(XDMA2_MM2S -> sr).halted) { }  // await mm2s halted
+bool _ethdma_txsgcmpltSignal(void) {
+    return sgdma_sgls.ethdma_txcmplt;
 }
 
 bool _ethdma_rxbuserrSignal(void) {
     return sgdma_sgls.ethdma_rxbuserr;
+}
+
+void _ethdma_txsgflush(void) {
+
+    xsgdma_queue_t tail = eth_txtail; 
+
+    if ((tail == 0) || (tail == 0xFF)) {
+        return;
+    }
+
+    /* the tx queue will be locked till transfer completion */
+    eth_txtail = 0xFF;
+
+    xsgdmadesc_t *bd_head = XDMA2_MM2S_BDRING;
+    xsgdmadesc_t *bd_tail = &XDMA2_MM2S_BDRING[tail];
+    
+    xsgdma_seqTrans(XDMA2_MM2S, bd_head, bd_tail);
+}
+
+volatile void const* _ethdma_txsgenque(void const* mem, const size_t mem_len) {
+
+    xsgdma_queue_t tail = eth_txtail;
+    
+    /* if queue full or flush in progress */
+    if ((tail == eth_txdepth) || (tail == 0xFF)) {
+        return NULL;
+    }
+
+    xsgdmadesc_t *bd_desc = &XDMA2_MM2S_BDRING[tail];
+    
+    void *io_buffer = bd_desc -> buffer;
+    uintptr_t next_iobuffer = (uintptr_t) (bd_desc -> next -> buffer);
+
+    if (next_iobuffer <= ((uintptr_t) io_buffer + mem_len)) {
+        return NULL;
+    }
+
+    /* save tx data */
+    memcpy(io_buffer, mem, mem_len);
+
+    bd_desc -> status.cmplt = false;
+    bd_desc -> status.trans_len = 0;
+
+    bd_desc -> status.dma_decErr = false;
+    bd_desc -> status.dma_intErr = false;
+    bd_desc -> status.dma_intSlvErr = false;
+    
+    bd_desc -> control.tx_sof = true;
+    bd_desc -> control.tx_eof = true;
+
+    bd_desc -> control.buffer_len = mem_len;
+
+    eth_txtail++;
+    _xdcache_flush((uintptr_t) bd_desc, sizeof(xsgdmadesc_t));
+
+    return io_buffer;
+}
+
+volatile void const* _ethdma_txsgnormal(const size_t alloc_len, const size_t io_buff) {
+
+    /* check if input valid */
+    if (((io_buff & XDMA_DATA_ALIGN) != 0) || 
+            (alloc_len > XDMA_IO_BUFFER_SIZE) ||
+                (alloc_len < io_buff) || ((alloc_len % io_buff) != 0)) {
+        return NULL;
+    }
+
+    if (!xsgdma_sgallowed(XDMA2_MM2S)) {
+        return NULL;
+    }
+
+    /* setup normal mm2s bd ring  */
+    xsgdma_seqRing(XDMA2_MM2S_BDRING, XDMA2_MM2S_BUFFER, alloc_len, io_buff);
+
+    return XDMA2_MM2S_BUFFER;
 }
 
 void *_ethdma_rxsgcmplt(void *mem, const size_t mem_len, size_t *const trans_len) {
@@ -469,7 +549,7 @@ volatile void const* _ethdma_rxsgcyclic(const size_t alloc_len, const size_t io_
         return NULL;
     }
 
-    if (!xsgdma_cyclicAllowed(XDMA2_S2MM)) {
+    if (!xsgdma_sgallowed(XDMA2_S2MM)) {
         return NULL;
     }
 
@@ -477,14 +557,13 @@ volatile void const* _ethdma_rxsgcyclic(const size_t alloc_len, const size_t io_
     xsgdma_cyclicRing(XDMA2_S2MM_BDRING, XDMA2_S2MM_BUFFER, alloc_len, io_buff);
 
     /* start DMA2 S2MM engine */
-
-    xsgdma_cyclicTrans(XDMA2_S2MM, XDMA2_S2MM_BDRING);
+    xsgdma_cyclicTrans(XDMA2_S2MM, &XDMA2_S2MM_BDRING[eth_rxhead]);
 
     sgdma_sgls.ethdma_rxbuserr = false;
     return XDMA2_S2MM_BUFFER;
 }
 
-/***************** sound blaster DMA **********************/
+/****************************** sound blaster DMA *****************************/
 
 void _sbdma_sgstop(void) {
     xsgdma_engstop(XDMA1_MM2S);
@@ -546,7 +625,7 @@ volatile void const* _sbdma_sgcyclic(const int seed, const size_t alloc_len, con
         return NULL;
     }
 
-    if (!xsgdma_cyclicAllowed(XDMA1_MM2S)) {
+    if (!xsgdma_sgallowed(XDMA1_MM2S)) {
         return NULL;
     }
 
@@ -564,12 +643,12 @@ volatile void const* _sbdma_sgcyclic(const int seed, const size_t alloc_len, con
     sgdma_sgls.sbdma_cmplt = false;
     sgdma_sgls.sbdma_buserr = false;
 
-    xsgdma_cyclicTrans(XDMA1_MM2S, &XDMA1_MM2S_BDRING[eth_rxhead]);
+    xsgdma_cyclicTrans(XDMA1_MM2S, XDMA1_MM2S_BDRING);
 
     return XDMA1_IO_BUFFER;
 }
 
-/************************ sdcard DMA **********************/
+/******************************** sdcard DMA ******************************/
 
 volatile void const* _sdcdma_wrt(void const* mem, const size_t len) {
 
@@ -610,7 +689,7 @@ volatile void const* _sdcdma_rdt(const size_t len) {
 
 /********************************************************************************************************************/
 
-static inline bool xsgdma_cyclicAllowed(volatile xsgdma_ch_t *t_ch) {
+static inline bool xsgdma_sgallowed(volatile xsgdma_ch_t *t_ch) {
 
     xdmasr_t xdma_sr = { 0 };
     xdma_sr.reg = (t_ch -> sr).reg;
@@ -636,6 +715,40 @@ static void xsgdma_engstop(volatile xsgdma_ch_t *t_ch) {
     (t_ch -> cr).reg = xdma_cr.reg;
 
     while ((t_ch -> cr).reset) { } // wait reset done
+}
+
+static void xsgdma_seqRing(xsgdmadesc_t *const head, void *const io_head, const size_t len, const size_t chunk) {
+
+    /* setup bd ring */
+
+    size_t bd_count = (len / chunk);
+    size_t bd_memsize = bd_count * sizeof(xsgdmadesc_t);
+
+    eth_txdepth = bd_count;
+
+    memset((void *) head, 0, bd_memsize);
+
+    size_t i;
+    
+    xsgdmadesc_t *bd_desc;
+    uintptr_t sa_addr = (uintptr_t) io_head;
+
+    for (i = 0, bd_desc = head; 
+            i < bd_count; i++, sa_addr += chunk, bd_desc++) {
+
+        bd_desc -> control.tx_sof = true;
+        bd_desc -> control.tx_eof = true;
+
+        bd_desc -> control.buffer_len = chunk;
+
+        bd_desc -> next = (bd_desc + 1);
+        bd_desc -> buffer_addr.lsb = sa_addr;
+    }
+
+    bd_desc--;
+    bd_desc -> next = NULL;
+
+    _xdcache_flush((uintptr_t) head, bd_memsize);
 }
 
 static void xsgdma_cyclicRing(xsgdmadesc_t *const head, void *const io_head, const size_t len, const size_t chunk) {
@@ -665,9 +778,24 @@ static void xsgdma_cyclicRing(xsgdmadesc_t *const head, void *const io_head, con
     }
 
     bd_desc--;
-    bd_desc -> next = head;
+    bd_desc -> next = (xsgdmadesc_t *) head;
 
     _xdcache_flush((uintptr_t) head, bd_memsize);
+}
+
+static void xsgdma_seqTrans(volatile xsgdma_ch_t *t_ch, xsgdmadesc_t const* head, xsgdmadesc_t const* tail) {
+
+    volatile xdmacr_t sgdma_cr = { 0 };
+
+    sgdma_cr.rs = true;
+
+    sgdma_cr.err_irq_en = true;
+    sgdma_cr.ioc_irq_en = true;
+
+    (t_ch -> currdesc) = (xsgdmadesc_t *) head;
+
+    (t_ch -> cr).reg = sgdma_cr.reg;
+    (t_ch -> taildesc) = (xsgdmadesc_t *) tail;       // begin DMA DRQ in SG normal mode
 }
 
 static void xsgdma_cyclicTrans(volatile xsgdma_ch_t *t_ch, xsgdmadesc_t const* head) {   
@@ -683,7 +811,7 @@ static void xsgdma_cyclicTrans(volatile xsgdma_ch_t *t_ch, xsgdmadesc_t const* h
     (t_ch -> currdesc) = (xsgdmadesc_t *) head;
 
     (t_ch -> cr).reg = sgdma_cr.reg;
-    (t_ch -> taildesc_addr).lsb = 0x50;    // begin DMA DRQ
+    (t_ch -> taildesc_addr).lsb = 0x50;    // begin DMA DRQ in SG cyclic mode
 }
 
 static void* xdirectdma_trans(volatile xdirectdma_ch_t *t_ch, void const* mem, const size_t len) {
@@ -736,11 +864,13 @@ static bool ethdma_queue(const bool event, volatile xsgdma_queue_t *const pq, vo
 
 static inline void xsgdma_irqsignal(volatile bool ioe) {
 
-    if (!ioe) {
-        return;
+    int sgl = SIGINT;
+
+    if (ioe) {
+        sgl = SIGBUS;
     }
 
-    _kernel_raise(SIGBUS);
+    _kernel_raise(sgl);
 }
 
 static inline xdmasr_t xsgdma_ackirq(volatile xsgdma_ch_t *t_ch) {
@@ -774,9 +904,12 @@ static void onethdma_txirq(void) {
 
     xdmasr_t sr = xsgdma_ackirq(XDMA2_MM2S);
 
+    volatile bool ioc = sr.ioc_irq;
     volatile bool ioe = sr.err_irq;
 
     xsgdma_irqsignal(ioe);
+
+    sgdma_sgls.ethdma_txcmplt = ioc;
     sgdma_sgls.ethdma_txbuserr = ioe;
 }
 
@@ -787,10 +920,12 @@ static void onethdma_rxirq(void) {
     volatile bool ioe = sr.err_irq;
     volatile bool ioc = sr.ioc_irq;
 
-    xsgdma_irqsignal(ioe);
-
     if (ioc) {
         rxcount++;
+    }
+
+    if (ioe) {
+        _kernel_raise(SIGBUS);
     }
 
     if (ethdma_queue(ioc, &eth_rxhead, &eth_rxtail)) {

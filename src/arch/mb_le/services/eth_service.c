@@ -29,11 +29,13 @@ static uint8_t link_reg = ETH_LINKDOWN;
 
 static void eth_service(void);
 
+static int ethmac_m(const int argc, const char** argv);
 static int ethpack_m(const int argc, const char** argv);
 static int ethphy_m(const int argc, const char** argv);
 static int ethlink_m(const int argc, const char** argv);
 static int ethstat_m(const int argc, const char** argv);
 
+_SHELL_COMMAND(ethmac, ethmac_m);
 _SHELL_COMMAND(ethphy, ethphy_m);
 _SHELL_COMMAND(ethtail, ethpack_m);
 _SHELL_COMMAND(ethlink, ethlink_m);
@@ -58,7 +60,7 @@ static void eth_service(void) {
         return;
     }
 
-    /* poll link or rx complete signals after SIGINT */
+    /* poll link or rx buss error signals after SIGINT */
     bool eth_sgl = _xtemac_phylinkSignal() || _ethdma_rxbuserrSignal();
     
     if (eth_sgl && _xtemac_phylinkSignal()) {
@@ -84,6 +86,22 @@ static void eth_service(void) {
     if (eth_sgl) {
         _kernel_sigprocmask(SIG_UNBLOCK, &sigint, NULL);
     }
+}
+
+static int ethmac_m(const int argc, const char** argv) {
+
+    (void) argc;
+    (void) argv;
+
+    uint8_t m_addr[6];
+    _xtemac_mac(m_addr, sizeof(m_addr));
+    
+    _kernel_outStringFormat(
+        "MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+            (unsigned)m_addr[0], (unsigned)m_addr[1], (unsigned)m_addr[2], 
+            (unsigned)m_addr[3], (unsigned)m_addr[4], (unsigned)m_addr[5]);
+
+    return 0;
 }
 
 static int ethpack_m(const int argc, const char** argv) {

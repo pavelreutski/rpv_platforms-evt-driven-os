@@ -7,13 +7,18 @@
 #define XTEMAC_BASE                     (0x44A60000)
 
 #define XTEMAC_REG_BASE                 (XTEMAC_BASE + 0x400)
+#define XTEMAC_MAC_BASE                 (XTEMAC_BASE + 0x700)
 
 #define XTEMAC                          ((xtemac_t *) XTEMAC_REG_BASE)
+#define XTEMAC_MAC                      ((xtemac_mac_t *) XTEMAC_MAC_BASE)
 
-#define XTEMAC_IO_QUEUE                 (10)
+#define XTEMAC_MAX_MAC                  (6)
+#define XTEMAC_MAX_QUEUE                (10)
 #define XTEMAC_MAX_FRAME                (1536)
 
-#define XTEMAC_IO_BUFFER                (XTEMAC_MAX_FRAME * XTEMAC_IO_QUEUE)
+#define XTEMAC_IO_BUFFER                (XTEMAC_MAX_FRAME * XTEMAC_MAX_QUEUE)
+
+#define XTEMAC_DEF_MACADDR              { 0x02, 0x1A, 0x11, 0x00, 0x7C, 0x55 }
 
 enum xtemac_speed_u : uint8_t {
 
@@ -26,7 +31,7 @@ enum xtemac_speed_u : uint8_t {
 
 /* XTEMAC rx config word 1 register */
 
-union xtemac_rx_cfg_word1_u {
+typedef union xtemac_rx_cfg_word1_u {
 
     uint32_t reg;
 
@@ -43,11 +48,11 @@ union xtemac_rx_cfg_word1_u {
         uint32_t jumbo_frame_enable   : 1;  /* Bit 30     : R/W Jumbo frame enable (1 = allow oversized frames) */
         uint32_t reset                : 1;  /* Bit 31     : R/W Receiver reset (self-clearing) */ 
     };
-};
+} xtemac_rx_cfg_w1_t;
 
 /* XTEMAC tx config word register */
 
-union xtemac_tx_cfg_word_u {
+typedef union xtemac_tx_cfg_word_u {
     
     uint32_t reg;
 
@@ -62,11 +67,11 @@ union xtemac_tx_cfg_word_u {
         uint32_t jumbo_frame_enable  : 1;  /* Bit 30     : R/W Jumbo frame enable (1 = allow oversized frames) */
         uint32_t reset               : 1;  /* Bit 31     : R/W Transmitter reset (self-clearing) */
     };
-};
+} xtemax_tx_cfg_t;
 
 /*XTEMAC flow control config word register */
 
-union xtemac_flow_ctl_cfg_word_u {
+typedef union xtemac_flow_ctl_cfg_word_u {
 
     uint32_t reg;
 
@@ -106,11 +111,11 @@ union xtemac_flow_ctl_cfg_word_u {
 
         uint32_t reserved31          : 1;  /* Bit 31 : RO Reserved */
     };
-};
+} xtemac_flow_ctl_cfg_t;
 
 /* XTEMAC speed config word register */
 
-union xtemac_speed_cfg_word_u {
+typedef union xtemac_speed_cfg_word_u {
 
     uint32_t reg;
 
@@ -123,11 +128,11 @@ union xtemac_speed_cfg_word_u {
                                             10 = 1 Gbps
                                             Note: Hard-coded if core generated for only certain speeds */
     };
-};
+} xtemac_speed_cfg_t;
 
 /* XTEMAC rx max frame config word register */
 
-union xtemac_rx_max_frame_cfg_word_u {
+typedef union xtemac_rx_max_frame_cfg_word_u {
 
     uint32_t reg;
 
@@ -142,11 +147,11 @@ union xtemac_rx_max_frame_cfg_word_u {
                                             Ignored if Jumbo Enable is set */
         uint32_t reserved17_31     : 15; /* Bits 17–31 : RO  Reserved */
     };
-};
+} xtemac_rx_max_frame_cfg_t;
 
 /* XTEMAC tx max frame config word register */
 
-union xtemac_tx_max_frame_cfg_word_u {
+typedef union xtemac_tx_max_frame_cfg_word_u {
 
     uint32_t reg;
 
@@ -161,11 +166,11 @@ union xtemac_tx_max_frame_cfg_word_u {
                                             Ignored if Jumbo Enable is set */
         uint32_t reserved17_31     : 15; /* Bits 17–31 : RO  Reserved */
     };
-};
+} xtemax_tx_max_frame_cfg_t;
 
 /* XTEMAC per priority quanta/refresh register */
 
-union xtemac_per_priority_quanta_refresh_u {
+typedef union xtemac_per_priority_quanta_refresh_u {
 
     uint32_t reg;
 
@@ -178,11 +183,11 @@ union xtemac_per_priority_quanta_refresh_u {
                                             Controls how frequently a new PFC frame refreshes the
                                             quanta for all active, enabled TX priorities */
     };
-};
+} xtemac_per_priority_quanta_refresh_t;
 
 /* XTEMAC legacy pause refresh register */
 
-union xtemac_legacy_pause_refresh_u {
+typedef union xtemac_legacy_pause_refresh_u {
 
     uint32_t reg;
 
@@ -193,11 +198,11 @@ union xtemac_legacy_pause_refresh_u {
                                             Controls the frequency of automatic pause refresh
                                             when PFC and XON/XOFF extended functionality are supported */
     };
-};
+} xtemac_legacy_pause_refresh_t;
 
 /* XTEMAC id register */
 
-union xtemac_identifier_u {
+typedef union xtemac_identifier_u {
 
     uint32_t reg;
 
@@ -210,11 +215,11 @@ union xtemac_identifier_u {
         uint32_t minor_rev          : 8;  /* Bits 16–23 : RO  Minor Revision */
         uint32_t major_rev          : 8;  /* Bits 24–31 : RO  Major Revision */
     };
-};
+} xtemac_id_t;
 
 /* XTEMAC ability register */
 
-union xtemac_ability_u {
+typedef union xtemac_ability_u {
 
     uint32_t reg;
 
@@ -232,11 +237,41 @@ union xtemac_ability_u {
         uint32_t pfc_support           : 1;  /* Bit 16 : RO  Priority Flow Control supported */
         uint32_t reserved17_31         : 15; /* Bits 17–31 : RO  Reserved */
     };
-};
+} xtemac_ability_t;
+
+/* XTEMAC uaw0 register */
+
+typedef union xtemac_uaw0_u {
+
+    uint32_t reg;
+
+    struct {
+
+        uint8_t byte0;   /* MAC[7:0]   */
+        uint8_t byte1;   /* MAC[15:8]  */
+        uint8_t byte2;   /* MAC[23:16] */
+        uint8_t byte3;   /* MAC[31:24] */
+    };
+} xtemac_uaw0_t;
+
+/* XTEMAC uaw1 register */
+
+typedef union xtemac_uaw1_u {
+
+    uint32_t reg;
+
+    struct {
+
+        uint8_t byte4;     /* MAC[39:32] */
+        uint8_t byte5;     /* MAC[47:40] */
+        uint8_t reserved0; /* Reserved   */
+        uint8_t reserved1; /* Reserved   */
+    };
+} xtemac_uaw1_t;
 
 /* XTEMAC */
 
-struct xtemac_s {
+typedef struct xtemac_s {
 
     volatile uint32_t rx_cfg_w0;                                       /* 0x400 */
     volatile union xtemac_rx_cfg_word1_u rx_cfg_w1;                    /* 0x404 */
@@ -258,27 +293,24 @@ struct xtemac_s {
 
     volatile union xtemac_identifier_u id;                             /* 0x4F8 */
     volatile union xtemac_ability_u ability;                           /* 0x4FC */
-};
+} xtemac_t;
+
+/* XTEMAC MAC */
+
+typedef union xtemac_mac_s {
+
+    uint64_t reg;
+
+    struct {
+
+        volatile xtemac_uaw0_t uaw0; /* 0x00 */
+        volatile xtemac_uaw1_t uaw1; /* 0x04 */
+    };
+} xtemac_mac_t;
+
+static void xtemac_setmac(void const* mac);
 
 /* XTEMAC type definitions */
-
-typedef struct xtemac_s xtemac_t;
-
-typedef union xtemac_rx_cfg_word1_u xtemac_rx_cfg_w1_t;
-
-typedef union xtemac_tx_cfg_word_u xtemax_tx_cfg_t;
-typedef union xtemac_flow_ctl_cfg_word_u xtemac_flow_ctl_cfg_t;
-
-typedef union xtemac_speed_cfg_word_u xtemac_speed_cfg_t;
-
-typedef union xtemac_rx_max_frame_cfg_word_u xtemac_rx_max_frame_cfg_t;
-typedef union xtemac_tx_max_frame_cfg_word_u xtemax_tx_max_frame_cfg_t;
-
-typedef union xtemac_per_priority_quanta_refresh_u xtemac_per_priority_quanta_refresh_t;
-typedef union xtemac_legacy_pause_refresh_u xtemac_legacy_pause_refresh_t;
-
-typedef union xtemac_identifier_u xtemac_id_t;
-typedef union xtemac_ability_u xtemac_ability_t;
 
 void _xtemac_start(void) {
 
@@ -292,14 +324,39 @@ void _xtemac_start(void) {
 
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
+
+    uint8_t mac[] = XTEMAC_DEF_MACADDR;
+    xtemac_setmac(mac);
+
+    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
+}
+
+void _xtemac_mac(void *const mac, const size_t len) {
+
+    if (len > XTEMAC_MAX_MAC) {
+        return;
+    }
+
+    xtemac_mac_t xmac;
+    xmac.reg = (XTEMAC_MAC -> reg);
+
+    uint8_t *maddr = ((uint8_t *) mac);
+
+    /* msb of a MAC register is a first byte of a MAC sequence  */
+
+    maddr[0] = xmac.uaw1.byte5;
+    maddr[1] = xmac.uaw1.byte4;
+
+    maddr[2] = xmac.uaw0.byte3;
+    maddr[3] = xmac.uaw0.byte2;
+    maddr[4] = xmac.uaw0.byte1;
+    maddr[5] = xmac.uaw0.byte0;
 }
 
 void _xtemac_trxdisable(void) {
 
     (XTEMAC -> tx_cfg).transmit_enable = false;
     (XTEMAC -> rx_cfg_w1).receiver_enable = false;
-
-    _ethdma_sgstop();
 }
 
 void _xtemac_trxenable(void) {
@@ -330,10 +387,26 @@ void _xtemac_trxenable(void) {
     mac_cfg.mac_speed = 
         (phy.speed == SPEED_10MBPS) ? XTEMAC_10MBPS_SPEED : XTEMAC_100MPBS_SPEED;
 
-    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
-
     (XTEMAC -> speed_cfg).reg = mac_cfg.reg;
     (XTEMAC -> rx_maxFrame_cfg).reg = rx_cfg.reg;
 
     (XTEMAC -> rx_cfg_w1).reg = rx.reg;
+}
+
+/****************************************************************************/
+
+static void xtemac_setmac(void const* mac) {
+
+    /* first MAC seq byte is msb of a MAC register */
+
+    uint8_t *setmac = (uint8_t *) mac;
+    xtemac_mac_t xmac = { .uaw0.byte0 = setmac[5],
+                          .uaw0.byte1 = setmac[4],
+                          .uaw0.byte2 = setmac[3],
+                          .uaw0.byte3 = setmac[2],
+                        
+                          .uaw1.byte4 = setmac[1],
+                          .uaw1.byte5 = setmac[0] };
+
+    (XTEMAC_MAC -> reg) = xmac.reg;
 }
