@@ -67,7 +67,7 @@ typedef union xtemac_tx_cfg_word_u {
         uint32_t jumbo_frame_enable  : 1;  /* Bit 30     : R/W Jumbo frame enable (1 = allow oversized frames) */
         uint32_t reset               : 1;  /* Bit 31     : R/W Transmitter reset (self-clearing) */
     };
-} xtemax_tx_cfg_t;
+} xtemac_tx_cfg_t;
 
 /*XTEMAC flow control config word register */
 
@@ -166,7 +166,7 @@ typedef union xtemac_tx_max_frame_cfg_word_u {
                                             Ignored if Jumbo Enable is set */
         uint32_t reserved17_31     : 15; /* Bits 17–31 : RO  Reserved */
     };
-} xtemax_tx_max_frame_cfg_t;
+} xtemac_tx_max_frame_cfg_t;
 
 /* XTEMAC per priority quanta/refresh register */
 
@@ -308,6 +308,7 @@ typedef union xtemac_mac_s {
     };
 } xtemac_mac_t;
 
+static void xtemac_trxreset(void);
 static void xtemac_setmac(void const* mac);
 
 /* XTEMAC type definitions */
@@ -315,23 +316,16 @@ static void xtemac_setmac(void const* mac);
 void _xtemac_start(void) {
 
     _xtemac_phy();
-
-    (XTEMAC -> rx_cfg_w1).reset = 1;
-    while((XTEMAC -> rx_cfg_w1).reset) { }
-
-    (XTEMAC -> tx_cfg).reset = 1;
-    while((XTEMAC -> tx_cfg).reset) { }
-
-    (XTEMAC -> tx_cfg).transmit_enable = false;
-    (XTEMAC -> rx_cfg_w1).receiver_enable = false;
+    xtemac_trxreset();
 
     uint8_t mac[] = XTEMAC_DEF_MACADDR;
     xtemac_setmac(mac);
 
+    _ethdma_txsgnormal(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
     _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
 }
 
-void _xtemac_mac(void *const mac, const size_t len) {
+void _xtemac_mac(void * dst_mac, const size_t len) {
 
     if (len > XTEMAC_MAX_MAC) {
         return;
@@ -340,7 +334,7 @@ void _xtemac_mac(void *const mac, const size_t len) {
     xtemac_mac_t xmac;
     xmac.reg = (XTEMAC_MAC -> reg);
 
-    uint8_t *maddr = ((uint8_t *) mac);
+    uint8_t *maddr = ((uint8_t *) dst_mac);
 
     /* msb of a MAC register is a first byte of a MAC sequence  */
 
@@ -351,6 +345,15 @@ void _xtemac_mac(void *const mac, const size_t len) {
     maddr[3] = xmac.uaw0.byte2;
     maddr[4] = xmac.uaw0.byte1;
     maddr[5] = xmac.uaw0.byte0;
+}
+
+static void xtemac_trxreset(void) {
+
+    (XTEMAC -> rx_cfg_w1).reset = 1;
+    while((XTEMAC -> rx_cfg_w1).reset) { }
+
+    (XTEMAC -> tx_cfg).reset = 1;
+    while((XTEMAC -> tx_cfg).reset) { }
 }
 
 void _xtemac_trxdisable(void) {
@@ -366,6 +369,7 @@ void _xtemac_trxenable(void) {
         return;
     }
 
+    xtemac_tx_cfg_t tx = { 0 };
     xtemac_rx_cfg_w1_t rx = { 0 };
 
     rx.vlan_enable = true;
@@ -375,22 +379,52 @@ void _xtemac_trxenable(void) {
     rx.inband_fcs_enable = false;
     rx.jumbo_frame_enable = false;
 
-    rx.half_duplex = (phy.link == LINK_HALF_DUPLEX);
+    tx.vlan_enable = true;
+    tx.transmit_enable = true;
+    tx.inband_fcs_enable = false;
+    tx.jumbo_frame_enable = false;
 
-    xtemac_rx_max_frame_cfg_t rx_cfg = { 0 };
+    volatile bool phy_halfdup = 
+        (phy.link == LINK_HALF_DUPLEX);
 
-    rx_cfg.rx_max_frame_en = true;
-    rx_cfg.rx_max_frame_len = XTEMAC_MAX_FRAME;
-    
+    rx.half_duplex = phy_halfdup;
+    tx.half_duplex = phy_halfdup;
+
+    xtemac_tx_max_frame_cfg_t tx_frameCfg = { 0 };
+    xtemac_rx_max_frame_cfg_t rx_frameCfg = { 0 };
+
+    rx_frameCfg.rx_max_frame_en = true;
+    rx_frameCfg.rx_max_frame_len = XTEMAC_MAX_FRAME;
+
+    tx_frameCfg.tx_max_frame_en = true;
+    tx_frameCfg.tx_max_frame_len = XTEMAC_MAX_FRAME;
+
     xtemac_speed_cfg_t mac_cfg = { 0 };
 
     mac_cfg.mac_speed = 
         (phy.speed == SPEED_10MBPS) ? XTEMAC_10MBPS_SPEED : XTEMAC_100MPBS_SPEED;
 
     (XTEMAC -> speed_cfg).reg = mac_cfg.reg;
-    (XTEMAC -> rx_maxFrame_cfg).reg = rx_cfg.reg;
 
+    (XTEMAC -> tx_maxFrame_cfg).reg = tx_frameCfg.reg;
+    (XTEMAC -> rx_maxFrame_cfg).reg = rx_frameCfg.reg;
+
+    (XTEMAC -> tx_cfg).reg = tx.reg;
     (XTEMAC -> rx_cfg_w1).reg = rx.reg;
+}
+
+void _xtemac_recover(void) {
+
+    _xtemac_trxdisable();
+    _ethdma_trxstop();
+
+    _ethdma_trxreset();
+    xtemac_trxreset();
+
+    _ethdma_txsgnormal(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
+    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
+
+    _xtemac_trxenable();
 }
 
 /****************************************************************************/
