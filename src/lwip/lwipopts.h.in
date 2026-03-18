@@ -1,0 +1,63 @@
+/* Auto-generated lwipopts.h */
+
+#pragma once
+
+/* ===== System ===== */
+#define NO_SYS                         1
+#define SYS_LIGHTWEIGHT_PROT           0
+#define LWIP_TIMEVAL_PRIVATE           0
+
+/* ===== Memory (STATIC ONLY) ===== */
+#define MEM_LIBC_MALLOC                0
+#define MEM_USE_POOLS                  0
+#define MEM_ALIGNMENT                  4
+#define MEM_SIZE                       0   /* disable heap */
+
+/* Use pools instead of heap */
+#define MEMP_MEM_MALLOC                0
+
+/* PBUF */
+#define PBUF_POOL_SIZE                 @LWIP_PBUF_POOL_SIZE@
+#define PBUF_POOL_BUFSIZE              @LWIP_PBUF_POOL_BUFSIZE@
+
+/* ===== Protocols ===== */
+#define LWIP_IPV4                      1
+#define LWIP_IPV6                      0
+
+#define LWIP_ARP                       1
+#define LWIP_ICMP                      1
+#define LWIP_IGMP                      1
+
+#define LWIP_TCP                       1
+#define LWIP_UDP                       1
+
+#define LWIP_DHCP                      1
+#define LWIP_DNS                       0   /* enable if needed */
+
+/* ===== Socket / Netconn ===== */
+#define LWIP_NETCONN                   0   /* not needed for NO_SYS */
+#define LWIP_SOCKET                    0
+
+/* ===== TCP tuning ===== */
+#define TCP_MSS                        1460
+#define TCP_WND                        (4 * TCP_MSS)
+#define TCP_SND_BUF                    (4 * TCP_MSS)
+#define TCP_SND_QUEUELEN               (8 * TCP_SND_BUF / TCP_MSS)
+
+#define MEMP_NUM_TCP_SEG               32
+
+/* ===== DHCP ===== */
+#define DHCP_DOES_ARP_CHECK            1
+
+/* ===== IGMP ===== */
+#define LWIP_MULTICAST_TX_OPTIONS      1
+
+/* ===== Netif ===== */
+#define LWIP_NETIF_STATUS_CALLBACK     1
+#define LWIP_NETIF_LINK_CALLBACK       1
+
+/* ===== Timeouts ===== */
+#define LWIP_TIMERS                    1
+
+/* ===== Debug ===== */
+#define LWIP_DEBUG                     0

@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "netdev.h"
 
 #include "sys/xdma.h"
 #include "sys/xintc.h"
@@ -39,6 +40,7 @@ int main(void) {
     
     _kernel_outString("Starting RPV (Co) Event Driven OS (microblaze build)...\n");
 
+    _netdev_if();
     _shell_start();
 
     return 0;
