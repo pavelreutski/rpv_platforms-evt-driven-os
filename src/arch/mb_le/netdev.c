@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "netdev.h"
 
 #include "lwip/sys.h"
@@ -10,12 +12,12 @@
 
 #include "netif/ethernet.h"
 
-static err_t ethernetif_init(struct netif *netif);
+#include "sys/xdma.h"
+#include "sys/xtemac.h"
+#include "sys/xtimer.h"
 
-/* Forward declarations */
-static void low_level_init(struct netif *netif);
-static err_t low_level_output(struct netif *netif, struct pbuf *p);
-static struct pbuf* low_level_input(struct netif *netif);
+static err_t lwip_ethifInit(struct netif *netif);
+static err_t lwip_ethOutput(struct netif *netif, struct pbuf *p);
 
 struct netif ethif;
 
@@ -29,90 +31,45 @@ void _netdev_if(void) {
     IP4_ADDR(&netmask, 0, 0, 0, 0);
     IP4_ADDR(&gw, 0, 0, 0, 0);
 
-    netif_add(&ethif, &ipaddr, &netmask, &gw, NULL, ethernetif_init, ethernet_input);
+    netif_add(&ethif, &ipaddr, &netmask, &gw, NULL, lwip_ethifInit, ethernet_input);
 
     netif_set_default(&ethif);
     netif_set_up(&ethif);
-
-    dhcp_start(&ethif);
 }
 
 u32_t sys_now(void) {
-    return 0;
+    return _xtimer_millis();
 }
 
 /* Initialize the ethernet interface */
-static err_t ethernetif_init(struct netif *netif)
+static err_t lwip_ethifInit(struct netif *netif)
 {
-    netif->name[0] = 'e';
-    netif->name[1] = '0';
+    strcpy(netif -> name, "e0");
 
-    netif->hwaddr_len = 6;
+    netif -> hwaddr_len = 6;
+    _xtemac_mac(netif -> hwaddr, netif -> hwaddr_len);
 
-    netif->hwaddr[0] = 0x02;
-    netif->hwaddr[1] = 0x12;
-    netif->hwaddr[2] = 0x34;
-    netif->hwaddr[3] = 0x56;
-    netif->hwaddr[4] = 0x78;
-    netif->hwaddr[5] = 0x9A;
+    netif -> mtu = 1536;
+    netif -> flags |= (NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP);
 
     /* lwIP callback hooks */
-    netif->output = etharp_output;
-    netif->linkoutput = low_level_output;
-
-    /* Hardware initialization */
-    low_level_init(netif);
+    netif -> output = etharp_output;
+    netif -> linkoutput = lwip_ethOutput;
 
     return ERR_OK;
-}
-
-/* Low-level hardware initialization */
-static void low_level_init(struct netif *netif)
-{
-    /* TODO: Initialize your MAC hardware here */
-
-    netif->mtu = 1500;
-    netif->flags |= (NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP);
-
-    /* Optionally initialize link state or hardware buffers */
 }
 
 /* Send a packet */
-static err_t low_level_output(struct netif *netif, struct pbuf *p)
+static err_t lwip_ethOutput(struct netif *netif, struct pbuf *p)
 {
     (void) netif;
-
-    /* TODO: Copy pbuf contents to your hardware transmit buffer and trigger TX */
 
     struct pbuf *q;
-    for (q = p; q != NULL; q = q->next) {
-        /* Example: send q->payload of length q->len to your MAC */
-        (void)q->payload;
-        (void)q->len;
-    }
-
-    /* Indicate success */
-    return ERR_OK;
-}
-
-/* Receive a packet and allocate pbuf */
-static struct pbuf* low_level_input(struct netif *netif)
-{
-    (void) netif;
-
-    /* TODO: Read a packet from your MAC into a temporary buffer */
-
-    /* Return NULL if no packet is available */
-    return NULL;
-}
-
-/* Poll function to call in main loop */
-void ethernetif_input(struct netif *netif)
-{
-    struct pbuf *p;
-    while ((p = low_level_input(netif)) != NULL) {
-        if (netif->input(p, netif) != ERR_OK) {
-            pbuf_free(p);
+    for (q = p; q != NULL; q = q -> next) {
+        if (_ethdma_txsgenque(q -> payload, q -> len) == NULL) {
+            return ERR_IF;
         }
     }
+
+    return ERR_OK;
 }

@@ -16,6 +16,17 @@
 #include "sys/xtemac.h"
 #include "sys/xtemac_phy.h"
 
+#include "lwip/sys.h"
+#include "lwip/init.h"
+#include "lwip/netif.h"
+#include "lwip/tcp.h"
+#include "lwip/udp.h"
+#include "lwip/dhcp.h"
+#include "lwip/etharp.h"
+#include "lwip/timeouts.h"
+
+#include "netif/ethernet.h"
+
 enum ethcon_status_u : uint8_t {
     
     ETH_LINKUP,
@@ -25,8 +36,16 @@ enum ethcon_status_u : uint8_t {
 static phylink_t phylink = { 0 };
 static uint8_t link_reg = ETH_LINKDOWN;
 
+static void eth_linkup(struct netif *netif);
+static void eth_linkdown(struct netif *netif);
+
+static void lwip_ethInput(struct netif *netif);
+
+/********************************** ethernet service & commands *****************************************/
+
 static void eth_service(void);
 
+static int dhcp_m(const int argc, const char** argv);
 static int ethmac_m(const int argc, const char** argv);
 static int ethphy_m(const int argc, const char** argv);
 static int ethlink_m(const int argc, const char** argv);
@@ -37,19 +56,20 @@ _SHELL_COMMAND(ethphy, ethphy_m);
 _SHELL_COMMAND(ethlink, ethlink_m);
 _SHELL_COMMAND(ethstat, ethstat_m);
 
+_SHELL_COMMAND(dhcp, dhcp_m);
+
 _SERVICE(eth_svc, eth_service);
 
 static void eth_service(void) {
 
+    /* lookup for inbound traffic - it shall empty rx queue */
+    lwip_ethInput(netif_default);
+
+    /* handle TCP, ICMP or DHCP timers */
+    sys_check_timeouts();
+
     /* flush eth tx queue */
     _ethdma_txsgflush();
-
-    /* lookup for inbound traffic - it shall empty rx queue */
-
-    size_t psize;
-    uint8_t ethp[1536];
-
-    _ethdma_rxsgcmplt(ethp, sizeof(ethp), &psize);
 
     sigset_t sgls;
 
@@ -78,8 +98,8 @@ static void eth_service(void) {
 
         switch (link_reg) {
 
-            case ETH_LINKUP: { _xtemac_trxenable(); } break;
-            case ETH_LINKDOWN: { _xtemac_trxdisable(); } break;
+            case ETH_LINKUP: { eth_linkup(netif_default); } break;
+            case ETH_LINKDOWN: { eth_linkdown(netif_default); } break;
         
             default: break;
         }
@@ -94,6 +114,98 @@ static void eth_service(void) {
     if (eth_sgl) {
         _kernel_sigprocmask(SIG_UNBLOCK, &sgls, NULL);
     }
+}
+
+static void eth_linkup(struct netif *netif) {
+
+    _xtemac_trxenable();
+
+    if (netif != NULL) {
+        netif_set_link_up(netif);
+    }   
+}
+
+static void eth_linkdown(struct netif *netif) {
+
+    _xtemac_trxdisable();
+
+    if (netif != NULL) {
+        netif_set_link_down(netif);
+    }
+}
+
+/********************************** lwIP glue ***************************************************/
+
+static void lwip_ethInput(struct netif *netif) {
+
+    if (netif == NULL || 
+            (!netif_is_up(netif) || !netif_is_link_up(netif))) {
+        return;
+    }
+
+    size_t rx_len;
+    uint8_t rxp[1536];
+
+    if (_ethdma_rxsgcmplt(rxp, sizeof(rxp), &rx_len) == NULL) {
+        return;
+    }
+
+    struct pbuf *p = pbuf_alloc(PBUF_RAW, rx_len, PBUF_POOL);
+
+    if (p == NULL) {
+
+        _kernel_jentry("lwIP cant allocate the buffer for input packet");
+        return;
+    }
+
+    pbuf_take(p, rxp, rx_len);
+
+    if (netif -> input(p, netif) != ERR_OK) {
+
+        pbuf_free(p);
+        _kernel_jentry("lwIP input packet processing error");
+    }
+}
+
+/********************************** ethernet commands *******************************************/
+
+static int dhcp_m(const int argc, const char** argv) {
+
+    (void) argc;
+    (void) argv;
+
+    if (netif_default == NULL) {
+
+        _kernel_outString("no default net interface exist\n");
+        return -1;
+    }
+
+    struct netif *netif = netif_default;
+
+    if (!netif_is_link_up(netif)) {
+
+        _kernel_outString("default net interface link is down\n");
+        return 0;
+    }
+
+    if (!ip_addr_isany_val(netif_default -> ip_addr)) {
+
+        const char *gw = ipaddr_ntoa(&netif -> gw);
+        const char *ipv4 = ipaddr_ntoa(&netif -> ip_addr);
+
+        const char *netmask = ipaddr_ntoa(&netif -> netmask);
+
+        _kernel_outStringFormat("IP: %s\n", ipv4);
+        _kernel_outStringFormat("Gateway: %s\n", gw);
+        _kernel_outStringFormat("Netmask: %s\n", netmask);
+
+        return 0;
+    }
+
+    _kernel_outString("acquire ip address from dhcp");
+    dhcp_start(netif);
+
+    return 0;
 }
 
 static int ethmac_m(const int argc, const char** argv) {
