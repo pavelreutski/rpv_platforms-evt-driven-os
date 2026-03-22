@@ -4,6 +4,7 @@ typedef unsigned long eth_counter_t;
 
 eth_counter_t eth_rxqhead(void);
 eth_counter_t eth_rxqtail(void);
+eth_counter_t eth_rxqcount(void);
 
 eth_counter_t eth_txqhead(void);
 eth_counter_t eth_txqtail(void);

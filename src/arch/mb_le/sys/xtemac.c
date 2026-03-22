@@ -12,11 +12,8 @@
 #define XTEMAC                          ((xtemac_t *) XTEMAC_REG_BASE)
 #define XTEMAC_MAC                      ((xtemac_mac_t *) XTEMAC_MAC_BASE)
 
-#define XTEMAC_MAX_MAC                  (6)
-#define XTEMAC_MAX_QUEUE                (10)
-#define XTEMAC_MAX_FRAME                (1536)
-
-#define XTEMAC_IO_BUFFER                (XTEMAC_MAX_FRAME * XTEMAC_MAX_QUEUE)
+#define XTEMAC_MTUS                     (10)
+#define XTEMAC_MTUS_BUFFER              (XTEMAC_MTU * XTEMAC_MTUS)
 
 #define XTEMAC_DEF_MACADDR              { 0x02, 0x1A, 0x11, 0x00, 0x7C, 0x55 }
 
@@ -321,13 +318,13 @@ void _xtemac_start(void) {
     uint8_t mac[] = XTEMAC_DEF_MACADDR;
     xtemac_setmac(mac);
 
-    _ethdma_txsgnormal(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
-    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
+    _ethdma_txsgnormal(XTEMAC_MTUS_BUFFER, XTEMAC_MTU);
+    _ethdma_rxsgcyclic(XTEMAC_MTUS_BUFFER, XTEMAC_MTU);
 }
 
 void _xtemac_mac(void * dst_mac, const size_t len) {
 
-    if (len > XTEMAC_MAX_MAC) {
+    if (len > XTEMAC_MAC_ADDRLEN) {
         return;
     }
 
@@ -394,10 +391,10 @@ void _xtemac_trxenable(void) {
     xtemac_rx_max_frame_cfg_t rx_frameCfg = { 0 };
 
     rx_frameCfg.rx_max_frame_en = true;
-    rx_frameCfg.rx_max_frame_len = XTEMAC_MAX_FRAME;
+    rx_frameCfg.rx_max_frame_len = XTEMAC_MTU;
 
     tx_frameCfg.tx_max_frame_en = true;
-    tx_frameCfg.tx_max_frame_len = XTEMAC_MAX_FRAME;
+    tx_frameCfg.tx_max_frame_len = XTEMAC_MTU;
 
     xtemac_speed_cfg_t mac_cfg = { 0 };
 
@@ -421,8 +418,8 @@ void _xtemac_recover(void) {
     _ethdma_trxreset();
     xtemac_trxreset();
 
-    _ethdma_txsgnormal(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
-    _ethdma_rxsgcyclic(XTEMAC_IO_BUFFER, XTEMAC_MAX_FRAME);
+    _ethdma_txsgnormal(XTEMAC_MTUS_BUFFER, XTEMAC_MTU);
+    _ethdma_rxsgcyclic(XTEMAC_MTUS_BUFFER, XTEMAC_MTU);
 
     _xtemac_trxenable();
 }

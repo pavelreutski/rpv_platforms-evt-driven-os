@@ -27,9 +27,10 @@ void _netdev_if(void) {
 
     ip4_addr_t ipaddr, netmask, gw;
 
+    IP4_ADDR(&gw, 0, 0, 0, 0);
+    
     IP4_ADDR(&ipaddr, 0, 0, 0, 0);
     IP4_ADDR(&netmask, 0, 0, 0, 0);
-    IP4_ADDR(&gw, 0, 0, 0, 0);
 
     netif_add(&ethif, &ipaddr, &netmask, &gw, NULL, lwip_ethifInit, ethernet_input);
 
@@ -46,10 +47,10 @@ static err_t lwip_ethifInit(struct netif *netif)
 {
     strcpy(netif -> name, "e0");
 
-    netif -> hwaddr_len = 6;
+    netif -> hwaddr_len = XTEMAC_MAC_ADDRLEN;
     _xtemac_mac(netif -> hwaddr, netif -> hwaddr_len);
 
-    netif -> mtu = 1536;
+    netif -> mtu = XTEMAC_MTU;
     netif -> flags |= (NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP);
 
     /* lwIP callback hooks */

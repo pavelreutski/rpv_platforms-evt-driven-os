@@ -2,6 +2,9 @@
 
 #include <stddef.h>
 
+#define XTEMAC_MTU                          (1536)
+#define XTEMAC_MAC_ADDRLEN                  (6)
+
 void _xtemac_start(void);
 void _xtemac_recover(void);
 

@@ -402,6 +402,16 @@ eth_counter_t eth_txqtail(void) {
     return txtail;
 }
 
+eth_counter_t eth_rxqcount(void) {
+
+    volatile eth_counter_t rxhead = eth_rxhead;
+    volatile eth_counter_t rxtail = eth_rxtail;
+
+    eth_counter_t rxqcount = (rxhead - rxtail + XDMA2_MAX_BDS) % XDMA2_MAX_BDS;
+
+    return rxqcount; 
+}
+
 /****************************** ethernet DMA service *****************************/
 
 void _ethdma_trxstop(void) {

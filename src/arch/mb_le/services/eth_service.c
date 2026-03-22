@@ -144,26 +144,39 @@ static void lwip_ethInput(struct netif *netif) {
     }
 
     size_t rx_len;
-    uint8_t rxp[1536];
+    uint8_t rxp[XTEMAC_MTU];
 
-    if (_ethdma_rxsgcmplt(rxp, sizeof(rxp), &rx_len) == NULL) {
-        return;
+    volatile bool lwipAlloc_error = false;
+    volatile bool lwipInput_error = false; 
+
+    eth_counter_t rx_qcount = eth_rxqcount();
+
+    while((rx_qcount--) && 
+            _ethdma_rxsgcmplt(rxp, sizeof(rxp), &rx_len) != NULL) {
+
+        struct pbuf *p = pbuf_alloc(PBUF_RAW, rx_len, PBUF_POOL);
+
+        if (p == NULL) {
+
+            lwipAlloc_error = true;
+            continue;
+        }
+
+        pbuf_take(p, rxp, rx_len);
+
+        if (netif -> input(p, netif) != ERR_OK) {
+
+            pbuf_free(p);
+            lwipInput_error = true;
+        }
     }
 
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, rx_len, PBUF_POOL);
-
-    if (p == NULL) {
-
-        _kernel_jentry("lwIP cant allocate the buffer for input packet");
-        return;
-    }
-
-    pbuf_take(p, rxp, rx_len);
-
-    if (netif -> input(p, netif) != ERR_OK) {
-
-        pbuf_free(p);
+    if (lwipInput_error) {
         _kernel_jentry("lwIP input packet processing error");
+    }
+
+    if (lwipAlloc_error) {
+        _kernel_jentry("lwIP cant allocate the buffer for input packet");
     }
 }
 
@@ -188,21 +201,16 @@ static int dhcp_m(const int argc, const char** argv) {
         return 0;
     }
 
-    if (!ip_addr_isany_val(netif_default -> ip_addr)) {
+    if (!ip_addr_isany_val(netif -> ip_addr)) {
 
-        const char *gw = ipaddr_ntoa(&netif -> gw);
-        const char *ipv4 = ipaddr_ntoa(&netif -> ip_addr);
-
-        const char *netmask = ipaddr_ntoa(&netif -> netmask);
-
-        _kernel_outStringFormat("IP: %s\n", ipv4);
-        _kernel_outStringFormat("Gateway: %s\n", gw);
-        _kernel_outStringFormat("Netmask: %s\n", netmask);
+        _kernel_outStringFormat("IP: %s\n", ipaddr_ntoa(&netif -> ip_addr));
+        _kernel_outStringFormat("Gateway: %s\n", ipaddr_ntoa(&netif -> gw));
+        _kernel_outStringFormat("Netmask: %s\n", ipaddr_ntoa(&netif -> netmask));
 
         return 0;
     }
 
-    _kernel_outString("acquire ip address from dhcp");
+    _kernel_outString("acquire ip address from dhcp\n");
     dhcp_start(netif);
 
     return 0;

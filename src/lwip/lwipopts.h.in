@@ -11,7 +11,7 @@
 #define MEM_LIBC_MALLOC                0
 #define MEM_USE_POOLS                  0
 #define MEM_ALIGNMENT                  4
-#define MEM_SIZE                       0   /* disable heap */
+#define MEM_SIZE                       65536   /* disable heap */
 
 /* Use pools instead of heap */
 #define MEMP_MEM_MALLOC                0

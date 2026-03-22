@@ -9,6 +9,8 @@
 #define XTIMER_FREQ                       (100000000)
 #define XTIMER_MS_FREQ                    (XTIMER_FREQ / 1000)
 
+#define XTIMER_MAX_MS                     ((uint64_t)0x100000000ULL / XTIMER_MS_FREQ)
+
 #define XTIMER_BASE                       (0x41C00000)
 
 #define XTIMER                            ((xtimer_t *) XTIMER_BASE)
@@ -51,9 +53,13 @@ typedef struct {
     xtimer_ch_t tc1;      /* 0x10 */
 } xtimer_t;
 
+static volatile uint32_t tmr_ovrflows = 0;
+
 static __attribute__((fast_interrupt)) void timer_irq(void); 
 
 void _xtimer_start(void) {
+
+    tmr_ovrflows = 0;
 
     (XTIMER -> tc0).csr.ENT = false;
 
@@ -73,14 +79,17 @@ void _xtimer_start(void) {
     _xintc_enableIRQ(XTIMER_IRQ, timer_irq);
 }
 
-uint32_t _xtimer_ticks(void) {
-    return (XTIMER -> tc0).cntr;
-}
-
 uint32_t _xtimer_millis(void) {
 
-    uint32_t ticks = _xtimer_ticks();
-    uint32_t millis = (ticks / XTIMER_MS_FREQ);
+    uint32_t tmr_ovr, ticks;
+
+    do {
+
+        tmr_ovr = tmr_ovrflows;
+        ticks = (XTIMER -> tc0).cntr;
+    } while (tmr_ovr != tmr_ovrflows);
+
+    uint32_t millis = (XTIMER_MAX_MS * tmr_ovr) + (ticks / XTIMER_MS_FREQ);
 
     return millis;
 }
@@ -88,6 +97,7 @@ uint32_t _xtimer_millis(void) {
 /* xtimer isr */
 
 static void timer_irq(void) {
-    
+
+    tmr_ovrflows++;
     (XTIMER -> tc0).csr.TINT = true; /* ack timer irq */
 }
