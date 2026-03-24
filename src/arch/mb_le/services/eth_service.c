@@ -16,13 +16,8 @@
 #include "sys/xtemac.h"
 #include "sys/xtemac_phy.h"
 
-#include "lwip/sys.h"
-#include "lwip/init.h"
 #include "lwip/netif.h"
-#include "lwip/tcp.h"
-#include "lwip/udp.h"
 #include "lwip/dhcp.h"
-#include "lwip/etharp.h"
 #include "lwip/timeouts.h"
 
 #include "netif/ethernet.h"
@@ -187,26 +182,32 @@ static int dhcp_m(const int argc, const char** argv) {
     (void) argc;
     (void) argv;
 
-    if (netif_default == NULL) {
+    struct netif *netif = netif_default;
+
+    if (netif == NULL) {
 
         _kernel_outString("no default net interface exist\n");
         return -1;
     }
 
-    struct netif *netif = netif_default;
-
     if (!netif_is_link_up(netif)) {
 
         _kernel_outString("default net interface link is down\n");
         return 0;
+    }    
+
+    if (dhcp_supplied_address(netif)) {
+
+        _kernel_outStringFormat("IP: %s\n", ipaddr_ntoa(netif_ip4_addr(netif)));
+        _kernel_outStringFormat("Gateway: %s\n", ipaddr_ntoa(netif_ip4_gw(netif)));
+        _kernel_outStringFormat("Netmask: %s\n", ipaddr_ntoa(netif_ip4_netmask(netif)));
+
+        return 0;
     }
+    
+    if(netif_dhcp_data(netif)) {
 
-    if (!ip_addr_isany_val(netif -> ip_addr)) {
-
-        _kernel_outStringFormat("IP: %s\n", ipaddr_ntoa(&netif -> ip_addr));
-        _kernel_outStringFormat("Gateway: %s\n", ipaddr_ntoa(&netif -> gw));
-        _kernel_outStringFormat("Netmask: %s\n", ipaddr_ntoa(&netif -> netmask));
-
+        _kernel_outString("dhcp in progress or no response\n");
         return 0;
     }
 
