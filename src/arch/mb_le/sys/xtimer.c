@@ -79,6 +79,10 @@ void _xtimer_start(void) {
     _xintc_enableIRQ(XTIMER_IRQ, timer_irq);
 }
 
+uint32_t _xtimer_ticks(void) {
+    return (XTIMER -> tc0).cntr;
+}
+
 uint32_t _xtimer_millis(void) {
 
     uint32_t tmr_ovr, ticks;

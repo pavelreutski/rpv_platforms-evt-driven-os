@@ -8,6 +8,8 @@
 
 #include "security/sec_conf.h"
 
+#define SEC_SEQ_SIZE                  ((SEC_HASH_SIZE << 1) + SEC_NONCE_SIZE)
+
 enum {
 
     SEC_INIT,
@@ -30,7 +32,7 @@ union sec_artifact_s {
         uint8_t nonce[SEC_NONCE_SIZE];
     };
 
-    uint8_t seq[SEC_HASH_SIZE * 3];
+    uint8_t seq[SEC_SEQ_SIZE];
 };
 
 typedef union sec_artifact_s sec_art_t;
@@ -44,6 +46,14 @@ static uint8_t sec_reg = SEC_INIT;
 
 void _sec_context(void const* protected_region, const size_t region_size) {
 
+    if (protected != NULL) {
+
+        sec_reg = SEC_RECOVERY;
+        _sec_runtime();
+
+        return;
+    }
+
     sec_reg = SEC_INIT;
 
     protected = protected_region;
@@ -53,6 +63,10 @@ void _sec_context(void const* protected_region, const size_t region_size) {
 }
 
 void _sec_runtime(void) {
+
+    if (protected == NULL) {
+        sec_reg = SEC_RECOVERY;
+    }
 
     switch (sec_reg) {
 
@@ -100,6 +114,9 @@ void _sec_runtime(void) {
 
             _sec_storeread(S_STC_UID, art.proof, sizeof(art.proof)); // S_0 = hash(proof) -> S_static
             _sec_hash(protected, protected_size, art.protec_hash, sizeof(art.protec_hash)); // hash(code)
+
+            uint8_t hash[SEC_HASH_SIZE];
+            _sec_hash(protected, protected_size, hash, sizeof(hash));
 
             uint8_t s_dynamic[SEC_HASH_SIZE];
             _sec_hash(art.seq, sizeof(art.seq), s_dynamic, sizeof(s_dynamic)); // S_dynamic = hash(S_static || hash(code) || nonce)
