@@ -37,7 +37,7 @@ add_executable(${PROJECT_NAME})
 
 target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE c gcc rpv-kernel rpv-security-guardian fatfs lwip)
+target_link_libraries(${PROJECT_NAME} PRIVATE c gcc rpv-kernel security-guardian fatfs lwip)
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_MBLE_ASM_SOURCES} ${KERNEL_MBLE_C_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/mb_le)
