@@ -8,13 +8,13 @@
 
 #include "kernel_stdio.h"
 
-#include "security/sec_seq.h"
+#include "sec_seq.h"
 
-#include "security/sec_rt.h"
-#include "security/sec_conf.h"
+#include "sec_rt.h"
+#include "sec_conf.h"
 
-#include "security/sec_act.h"
-#include "security/sec_storage.h"
+#include "sec_act.h"
+#include "sec_storage.h"
 
 enum {
 

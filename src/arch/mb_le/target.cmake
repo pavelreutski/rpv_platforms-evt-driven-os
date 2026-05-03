@@ -2,9 +2,9 @@ project(rpv-microblazele-kernel LANGUAGES C ASM)
 
 include(gcc-elf-utils)
 
-set(KERNEL_PROFILE full CACHE STRING "" FORCE)
-
 # event driven kernel
+
+set(KERNEL_PROFILE full CACHE STRING "" FORCE)
 
 FetchContent_Declare(
         evtdriven-kernel
@@ -13,6 +13,16 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(evtdriven-kernel)
+
+# security guardian
+
+FetchContent_Declare(
+        sec-guardian
+        GIT_REPOSITORY git@github.com:pavelreutski/rpv-security-guardian.git
+        GIT_TAG master
+)
+
+FetchContent_MakeAvailable(sec-guardian)
 
 # use fatfs as files I/O backend
 include(./fatfs/fatfs.cmake)
@@ -27,7 +37,7 @@ add_executable(${PROJECT_NAME})
 
 target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE c gcc rpv-kernel fatfs lwip)
+target_link_libraries(${PROJECT_NAME} PRIVATE c gcc rpv-kernel rpv-security-guardian fatfs lwip)
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_MBLE_ASM_SOURCES} ${KERNEL_MBLE_C_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/mb_le)
