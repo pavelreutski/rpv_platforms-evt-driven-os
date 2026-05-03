@@ -4,8 +4,6 @@
 #include "service.h"
 #include "command.h"
 
-#include "sys/xtimer.h"
-
 #include "kernel_stdio.h"
 
 #include "sec_seq.h"
@@ -15,6 +13,8 @@
 
 #include "sec_act.h"
 #include "sec_storage.h"
+
+#include "sys/xtimer.h"
 
 enum {
 
