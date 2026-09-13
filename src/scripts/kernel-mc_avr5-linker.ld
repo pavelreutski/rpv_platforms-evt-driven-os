@@ -189,6 +189,10 @@ SECTIONS
     KEEP(*(.cmd_table))
     __end_cmd_table = .;
 
+    __svcinit_table = .;
+    KEEP(*(.service_init))
+    __end_svcinit_table = .;
+
     __svc_table = .;
     KEEP(*(.service_table))
     __end_svc_table = .;

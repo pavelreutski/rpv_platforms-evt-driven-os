@@ -44,9 +44,16 @@ SECTIONS {
         __cmd_table = .;
         KEEP(*(.cmd_table))
         __end_cmd_table = .;
-    } :data
+    } :data    
 
     /* ======= services table ======== */
+
+    .service_init : ALIGN(16)
+    {
+        __svcinit_table = .;
+        KEEP(*(.service_init))
+        __end_svcinit_table = .;
+    }
 
     .svc_table : ALIGN(16)
     {
