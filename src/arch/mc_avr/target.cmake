@@ -23,6 +23,7 @@ target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_AVR_C_SOURCES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE MCU_CONFIG="mcu_config.h")
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/mc_avr
+                                                   ./include/mc_avr/sys
                                                    ./include/mc_avr/config)
 
 target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
