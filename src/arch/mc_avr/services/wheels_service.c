@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "spi.h"
 #include "gpio.h"
 
 #include "service.h"
@@ -33,7 +34,7 @@ static int whls_m(const int argc, const char** argv) {
     // whls cs:0
     // whls cs:1
 
-    char cmd[3];
+    char cmd[4];
     char const* arg = whl_command(cmd, argv[1]);
 
     if (strcmp(cmd, "cs") == 0) {
@@ -62,6 +63,16 @@ static int whls_m(const int argc, const char** argv) {
                 _kernel_outString("unknown action\n");                
             } break;
         }
+    }
+
+    // whls cnt
+
+    if (strcmp(cmd, "cnt") == 0) {
+
+        int c = _spi_write(0);        
+        _kernel_outStringFormat("whlcnt %d\n", c);
+        
+        return 0;
     }
 
     _kernel_outString("unknown command\n");

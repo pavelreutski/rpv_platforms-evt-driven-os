@@ -2,12 +2,12 @@
 
 #include "avr/interrupt.h"
 
+#include "spi.h"
 #include "sys.h"
 
 void _sys_init(void) {    
 
-    SPI_DDR = ((1 << SPI_CS_PIN) | (1 << SPI_MOSI_PIN));
-    SPI_PORT |= ((1 << SPI_CS_PIN) | (1 << SPI_MOSI_PIN));
+    _spi_start();
 
     sei(); // enable global interrupts
 }
