@@ -77,7 +77,15 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 
 ### MicroBlaze
 
-- `microblaze-elf-gcc` toolchain with newlib (`libc`) and `libgcc`, for example from AMD/Xilinx Vitis
+- `microblaze-elf` toolchain: binutils, GCC 9.1 or newer (C23) and `libgcc`, with the
+  little-endian multilib (`-mlittle-endian`)
+- The C standard library is taken from **newlib** (`libc`)
+- No Xilinx SDK/BSP is used. The startup code, interrupt vectors, linker script and drivers are all
+  part of this repository.
+
+> [!CAUTION]
+> **AMD/Xilinx Vitis is not used, for licensing reasons.** The toolchain is built from sources.
+> Vitis' compiler is also named `microblaze-xilinx-elf-*`, not `microblaze-elf-*`.
 
 ## Building
 
@@ -104,7 +112,7 @@ The build uses CMake presets, and the `Makefile` wraps them. Output goes to `bui
 
 | Command | Result |
 |---|---|
-| `make microblaze_le-debug` | MicroBlaze kernel ELF |
+| `make microblaze_le-debug` | MicroBlaze kernel ELF (little-endian, entry point `0x82000000` in DDR) and raw binary |
 
 ## Running (x86_64)
 
