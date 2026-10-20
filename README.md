@@ -64,9 +64,16 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 
 ### Microchip AVR
 
-- `avr-gcc`, `avr-binutils`, `avr-libc`
+- `avr-gcc` 9.1 or newer, `avr-binutils`, `avr-libc` (AVR-LibC)
 - `avrdude`. It's needed even to configure, because the CMake files look for it.
 - An Arduino-compatible board on `/dev/ttyACM0` for flashing
+
+> [!CAUTION]
+> **The distribution's `gcc-avr` package is too old.** The AVR target is compiled as C23
+> (`c_std_23`), and CMake supports C23 only for GCC 9.1 and newer. Debian's `gcc-avr` is GCC 7.3,
+> so CMake configure fails with `The compiler feature "c_std_23" is not known`.
+> avr-gcc must be built from sources (GCC 15.3.0 with AVR-LibC 2.3.2 is tested).
+> Check with `avr-gcc --version`.
 
 ### MicroBlaze
 
