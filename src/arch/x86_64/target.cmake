@@ -28,7 +28,7 @@ file(GLOB_RECURSE KERNEL_X86_64_C_SOURCES CONFIGURE_DEPENDS ./arch/x86_64/*.c)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE ${KERNEL_X86_64_C_SOURCES})
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE c_std_23)
+target_compile_features(${PROJECT_NAME} PRIVATE c_std_23)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ./include/x86_64)
 target_link_libraries(${PROJECT_NAME} PRIVATE rpv-x86_64-bootstrap rpv-kernel fatfs)
