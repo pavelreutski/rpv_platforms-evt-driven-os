@@ -45,13 +45,13 @@ function(qemu_simul KERNEL_TARGET)
     )
 
     add_custom_target(qemu-x86_64-gdb
-        COMMAND qemu-system-x86_64 -m 512M -boot d -cdrom ${ISO_FILE} -drive file=${IDE_DISK_FILE},if=ide,index=0,media=disk,format=raw -s -S
+        COMMAND qemu-system-x86_64 -m 512M -boot d -cdrom ${ISO_FILE} -drive file=${IDE_DISK_FILE},if=ide,index=0,media=disk,format=raw -display curses -s -S
         DEPENDS ${KERNEL_TARGET} qemu-x86_64-idedisk
         COMMENT "Debug kernel ISO via QEMU"
     )
 
     add_custom_target(qemu-x86_64-run
-        COMMAND qemu-system-x86_64 -m 512M -boot d -cdrom ${ISO_FILE} -drive file=${IDE_DISK_FILE},if=ide,index=0,media=disk,format=raw
+        COMMAND qemu-system-x86_64 -m 512M -boot d -cdrom ${ISO_FILE} -drive file=${IDE_DISK_FILE},if=ide,index=0,media=disk,format=raw -display curses
         DEPENDS ${KERNEL_TARGET} qemu-x86_64-idedisk
         COMMENT "Run kernel ISO in QEMU"
     )
