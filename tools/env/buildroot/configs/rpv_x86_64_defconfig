@@ -1,0 +1,9 @@
+# x86_64-elf: binutils, gcc (C only), newlib, nasm and x86_64-elf-gdb.
+# Only host packages are built (see setup.sh), never a target system.
+BR2_x86_64=y
+BR2_INIT_NONE=y
+BR2_SYSTEM_BIN_SH_NONE=y
+# BR2_TARGET_ROOTFS_TAR is not set
+BR2_TOOLCHAIN_BARE_METAL_BUILDROOT=y
+BR2_TOOLCHAIN_BARE_METAL_BUILDROOT_ARCH="x86_64-elf"
+BR2_PACKAGE_HOST_X86_64_ELF_GDB=y

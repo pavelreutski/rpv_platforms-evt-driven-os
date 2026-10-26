@@ -27,10 +27,14 @@ src/
   scripts/                linker scripts
   fatfs/, lwip/           third-party library glue
 tools/cmake/              toolchain files and build helpers (ISO, QEMU, elf utils, AVR)
+tools/env/                environment setup: Buildroot toolchains, doctor, Docker image
 targets/x86_64/iso/       GRUB ISO tree (grub.cfg)
 ```
 
 ## Requirements
+
+`tools/env/setup.sh` sets up everything listed below for a target (see
+[Environment setup](#environment-setup)). The lists document what a manual setup needs.
 
 Common to all targets:
 
@@ -86,6 +90,78 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 > [!CAUTION]
 > **AMD/Xilinx Vitis is not used, for licensing reasons.** The toolchain is built from sources.
 > Vitis' compiler is also named `microblaze-xilinx-elf-*`, not `microblaze-elf-*`.
+
+## Environment setup
+
+`tools/env/setup.sh` builds the cross toolchains with [Buildroot](https://buildroot.org)
+and installs the distribution packages a target needs. It works on Debian/Ubuntu VMs and PCs,
+and the Docker image uses the same script.
+
+```bash
+tools/env/setup.sh x86_64          # or microblaze, avr, all
+. ~/opt/rpv/env.sh                 # put the toolchains on PATH
+```
+
+| Target | Toolchain |
+|---|---|
+| `x86_64` | binutils, GCC (C only) and newlib for `x86_64-elf`, `x86_64-elf-gdb`, nasm |
+| `microblaze` | binutils, GCC (C only, multilib) and newlib for `microblaze-elf` |
+| `avr` | Microchip AVR 8-bit GNU toolchain (prebuilt: avr-gcc, AVR-LibC, avr-gdb), x86_64 hosts only |
+
+Notes:
+
+- The toolchains are installed in `~/opt/rpv/<target>`, with symlinks to the tools in
+  `~/opt/rpv/bin`. Use `--prefix DIR` (or `RPV_ENV_PREFIX`) to install them elsewhere.
+- Missing packages are installed with `apt-get`, through `sudo` when not root.
+  With `--no-install`, nothing is installed and the script only checks.
+- `env.sh` has to be sourced in each new shell. `--shell-rc` adds it to `~/.bashrc`.
+- Versions are pinned in `tools/env/versions.env` (Buildroot release) and in the custom packages
+  under `tools/env/buildroot/package/`.
+- After switching toolchains (for example between the host and the container), run `make clean`.
+  CMake caches the compiler path.
+
+`tools/env/doctor.sh <target>` checks an environment without changing anything: compilers and
+C23 support, MicroBlaze multilib, QEMU curses support, GRUB, SSH access to GitHub and the AVR
+serial port.
+
+### Docker
+
+`tools/env/docker/Dockerfile` builds one image per target (`x86_64`, `microblaze`, `avr`) and
+an `all` image, named `rpv-env:<target>`. The wrapper scripts build the image on first use
+and run it with the repository mounted:
+
+| Host | Script | Repository in the container |
+|---|---|---|
+| Linux, WSL | `tools/env/docker/shell.sh` | same path as on the host |
+| Windows | `tools\env\docker\shell.ps1`, or `shell.cmd` if the PowerShell execution policy blocks scripts | `/work` |
+
+Both take the same arguments:
+
+```bash
+tools/env/docker/shell.sh x86_64                     # interactive shell
+tools/env/docker/shell.sh x86_64 make x86_64-iso     # single command
+tools/env/docker/shell.sh --rebuild x86_64           # rebuild the image first
+```
+
+```powershell
+tools\env\docker\shell.ps1 x86_64
+tools\env\docker\shell.ps1 x86_64 make x86_64-iso
+tools\env\docker\shell.ps1 --rebuild x86_64
+```
+
+SSH keys for the GitHub fetches are never stored in the image:
+
+- `shell.sh` forwards the host's ssh-agent.
+- Without a forwarded agent, the container starts its own. Load a key with `ssh-add <key>`.
+  `shell.ps1` mounts `%USERPROFILE%\.ssh` read-only at `/mnt/ssh`:
+
+  ```bash
+  install -Dm600 /mnt/ssh/<key> ~/.ssh/<key> && ssh-add ~/.ssh/<key>
+  ```
+
+For AVR, `shell.sh` passes the serial port into the container (`RPV_AVR_PORT`, default
+`/dev/ttyACM0`). On Windows, passing USB devices to Docker isn't supported by the script:
+flash from a Linux or WSL host.
 
 ## Building
 

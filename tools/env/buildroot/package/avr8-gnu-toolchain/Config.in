@@ -1,0 +1,8 @@
+config BR2_PACKAGE_HOST_AVR8_GNU_TOOLCHAIN
+	bool "host avr8-gnu-toolchain"
+	depends on BR2_HOSTARCH = "x86_64"
+	help
+	  Prebuilt Microchip AVR 8-bit GNU toolchain: binutils, avr-gcc,
+	  AVR-LibC and avr-gdb. It is only available for x86_64 hosts.
+
+	  https://www.microchip.com/en-us/tools-resources/develop/microchip-studio/gcc-compilers
