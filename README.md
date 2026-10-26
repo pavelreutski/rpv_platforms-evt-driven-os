@@ -126,40 +126,50 @@ serial port.
 
 ### Docker
 
-`tools/env/docker/Dockerfile` builds one image per target (`x86_64`, `microblaze`, `avr`) and
-an `all` image, named `rpv-env:<target>`. The wrapper scripts build the image on first use
-and run it with the repository mounted:
+`tools/env/docker/Dockerfile` builds one image per docker shell target. The images are named
+`rpv-env:<target>`:
+
+| Docker shell target | Image | Contents | Make targets inside |
+|---|---|---|---|
+| `x86_64` | `rpv-env:x86_64` | x86_64 toolchain and gdb, nasm, QEMU, GRUB, xorriso, mtools, fdisk, dosfstools | `x86_64-debug`, `x86_64-iso`, `x86_64-run`, `x86_64-qemu-debug` |
+| `microblaze` | `rpv-env:microblaze` | MicroBlaze toolchain | `microblaze_le-debug` |
+| `avr` | `rpv-env:avr` | AVR toolchain and avr-gdb, avrdude | `microchip_avr-debug`, `microchip_avr-prog` |
+| `all` | `rpv-env:all` | all of the above | all of the above |
+
+The `docker_shell` scripts build the image of a target if it doesn't exist yet, then run a
+container from it with the repository mounted. The container is removed when it exits.
 
 | Host | Script | Repository in the container |
 |---|---|---|
-| Linux, WSL | `tools/env/docker/shell.sh` | same path as on the host |
-| Windows | `tools\env\docker\shell.ps1`, or `shell.cmd` if the PowerShell execution policy blocks scripts | `/work` |
+| Linux, WSL | `tools/env/docker/docker_shell.sh` | same path as on the host |
+| Windows | `tools\env\docker\docker_shell.ps1`, or `docker_shell.cmd` if the PowerShell execution policy blocks scripts | `/work` |
 
-Both take the same arguments:
+All scripts take the same arguments: `[--rebuild] <x86_64|microblaze|avr|all> [command...]`.
+Without a command, they start an interactive shell.
 
 ```bash
-tools/env/docker/shell.sh x86_64                     # interactive shell
-tools/env/docker/shell.sh x86_64 make x86_64-iso     # single command
-tools/env/docker/shell.sh --rebuild x86_64           # rebuild the image first
+tools/env/docker/docker_shell.sh x86_64                     # interactive shell
+tools/env/docker/docker_shell.sh x86_64 make x86_64-iso     # single command
+tools/env/docker/docker_shell.sh --rebuild x86_64           # rebuild the image first
 ```
 
 ```powershell
-tools\env\docker\shell.ps1 x86_64
-tools\env\docker\shell.ps1 x86_64 make x86_64-iso
-tools\env\docker\shell.ps1 --rebuild x86_64
+tools\env\docker\docker_shell.ps1 x86_64
+tools\env\docker\docker_shell.ps1 x86_64 make x86_64-iso
+tools\env\docker\docker_shell.ps1 --rebuild x86_64
 ```
 
 SSH keys for the GitHub fetches are never stored in the image:
 
-- `shell.sh` forwards the host's ssh-agent.
+- `docker_shell.sh` forwards the host's ssh-agent.
 - Without a forwarded agent, the container starts its own. Load a key with `ssh-add <key>`.
-  `shell.ps1` mounts `%USERPROFILE%\.ssh` read-only at `/mnt/ssh`:
+  `docker_shell.ps1` mounts `%USERPROFILE%\.ssh` read-only at `/mnt/ssh`:
 
   ```bash
   install -Dm600 /mnt/ssh/<key> ~/.ssh/<key> && ssh-add ~/.ssh/<key>
   ```
 
-For AVR, `shell.sh` passes the serial port into the container (`RPV_AVR_PORT`, default
+For AVR, `docker_shell.sh` passes the serial port into the container (`RPV_AVR_PORT`, default
 `/dev/ttyACM0`). On Windows, passing USB devices to Docker isn't supported by the script:
 flash from a Linux or WSL host.
 

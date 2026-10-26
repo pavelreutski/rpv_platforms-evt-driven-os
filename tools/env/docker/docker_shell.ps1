@@ -1,18 +1,18 @@
 # Run the RPV environment image of a target on Windows, building it first if
-# needed. Same interface as shell.sh (Linux/WSL). The repository is mounted
-# at /work.
+# needed. Same interface as docker_shell.sh (Linux/WSL). The repository is
+# mounted at /work.
 #
-#   tools\env\docker\shell.ps1 x86_64                    # interactive shell
-#   tools\env\docker\shell.ps1 x86_64 make x86_64-iso    # single command
-#   tools\env\docker\shell.ps1 --rebuild x86_64          # rebuild the image first
+#   tools\env\docker\docker_shell.ps1 x86_64                   # interactive shell
+#   tools\env\docker\docker_shell.ps1 x86_64 make x86_64-iso   # single command
+#   tools\env\docker\docker_shell.ps1 --rebuild x86_64         # rebuild the image first
 #
-# If scripts are blocked by the execution policy, use shell.cmd instead.
+# If scripts are blocked by the execution policy, use docker_shell.cmd instead.
 
 # No $ErrorActionPreference = 'Stop': Windows PowerShell 5.1 would stop on the
 # stderr of 'docker image inspect' below. Exit codes are checked instead.
 
 function Show-Usage {
-    Write-Host 'Usage: shell.ps1 [--rebuild] <x86_64|microblaze|avr|all> [command...]'
+    Write-Host 'Usage: docker_shell.ps1 [--rebuild] <x86_64|microblaze|avr|all> [command...]'
     Write-Host ''
     Write-Host '  --rebuild   rebuild the image even if it exists'
 }

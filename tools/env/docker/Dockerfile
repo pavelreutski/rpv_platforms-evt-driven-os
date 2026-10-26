@@ -11,7 +11,8 @@
 #   docker build -f tools/env/docker/Dockerfile --target x86_64 \
 #       --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t rpv-env:x86_64 tools/env
 #
-# tools/env/docker/shell.sh (Linux/WSL) and shell.ps1 (Windows) build and run the image.
+# tools/env/docker/docker_shell.sh (Linux/WSL) and docker_shell.ps1 (Windows)
+# build the image if needed and run it.
 
 ARG DEBIAN_TAG=trixie-slim
 
@@ -36,7 +37,7 @@ RUN groupadd -o -g ${GID} rpv \
 
 COPY --chown=rpv:rpv doctor.sh /opt/rpv-env/
 
-# Starts an ssh-agent on SSH_AUTH_SOCK unless one is forwarded (shell.sh)
+# Starts an ssh-agent on SSH_AUTH_SOCK unless one is forwarded (docker_shell.sh)
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/rpv-entrypoint
 ENTRYPOINT ["/usr/local/bin/rpv-entrypoint"]
 CMD ["bash"]

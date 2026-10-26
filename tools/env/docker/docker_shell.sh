@@ -4,8 +4,9 @@
 # The repository is mounted at the same path as on the host, so 'make ...'
 # works inside the container exactly as on a VM/PC.
 #
-#   tools/env/docker/shell.sh x86_64                     # interactive shell
-#   tools/env/docker/shell.sh x86_64 make x86_64-iso     # single command
+#   tools/env/docker/docker_shell.sh x86_64                   # interactive shell
+#   tools/env/docker/docker_shell.sh x86_64 make x86_64-iso   # single command
+#   tools/env/docker/docker_shell.sh --rebuild x86_64         # rebuild the image first
 
 set -euo pipefail
 
