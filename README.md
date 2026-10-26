@@ -46,12 +46,12 @@ Common to all targets:
 | newlib headers | libc headers only (`string.h`, `stdlib.h`, `assert.h`), no libc is linked |
 | `nasm` | boot and low-level assembly |
 | `grub-mkrescue`, `grub-pc-bin`, `xorriso`, `mtools` | bootable ISO |
-| `parted`, `dosfstools`, `mtools` | FAT16 IDE disk image for QEMU |
+| `sfdisk` (`fdisk` package), `dosfstools`, `mtools` | FAT16 IDE disk image for QEMU |
 | `qemu-system-x86_64` **with curses support (required)** | run the kernel |
 | `x86_64-elf-gdb` (optional) | debugging |
 
 Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorriso`, `mtools`,
-`parted`, `dosfstools`, `qemu-system-x86`.
+`fdisk`, `dosfstools`, `qemu-system-x86`.
 
 #### QEMU with curses support
 
