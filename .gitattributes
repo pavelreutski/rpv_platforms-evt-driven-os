@@ -1,0 +1,7 @@
+# Check out text files with LF, also with Windows git (core.autocrlf).
+# Shell scripts, versions.env, Makefiles and the Buildroot/Docker files
+# are used inside Linux and break with CRLF.
+* text=auto eol=lf
+
+# cmd.exe needs CRLF in batch files
+*.cmd text eol=crlf

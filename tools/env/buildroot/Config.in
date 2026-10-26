@@ -1,0 +1,2 @@
+source "$BR2_EXTERNAL_RPV_PATH/package/avr8-gnu-toolchain/Config.in"
+source "$BR2_EXTERNAL_RPV_PATH/package/x86-64-elf-gdb/Config.in"

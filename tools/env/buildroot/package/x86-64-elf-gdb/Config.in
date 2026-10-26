@@ -1,0 +1,8 @@
+config BR2_PACKAGE_HOST_X86_64_ELF_GDB
+	bool "host x86_64-elf-gdb"
+	help
+	  GDB for the bare-metal x86_64-elf target, used to debug the
+	  kernel through the QEMU gdb stub. Built with TUI support,
+	  without Python.
+
+	  https://www.sourceware.org/gdb/

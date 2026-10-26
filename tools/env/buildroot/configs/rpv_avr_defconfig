@@ -1,0 +1,7 @@
+# avr: prebuilt Microchip AVR 8-bit GNU toolchain (gcc, AVR-LibC, avr-gdb).
+# Only host packages are built (see setup.sh), never a target system.
+BR2_x86_64=y
+BR2_INIT_NONE=y
+BR2_SYSTEM_BIN_SH_NONE=y
+# BR2_TARGET_ROOTFS_TAR is not set
+BR2_PACKAGE_HOST_AVR8_GNU_TOOLCHAIN=y

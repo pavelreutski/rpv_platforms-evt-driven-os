@@ -23,7 +23,7 @@ function(qemu_simul KERNEL_TARGET)
 
         # 2. Create MBR partition (FAT16, bootable)
         COMMAND echo "[2/5] Creating MBR and FAT16 partition..."
-        COMMAND parted ${IDE_DISK_FILE} --script mklabel msdos mkpart primary fat16 1MiB 100% set 1 boot on
+        COMMAND echo "start=2048, type=e, bootable" | sfdisk --quiet --label dos ${IDE_DISK_FILE}
 
         # 3. Create partition image and format as FAT16
         COMMAND echo "[3/5] Creating and formatting partition image..."
