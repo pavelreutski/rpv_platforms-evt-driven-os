@@ -231,6 +231,17 @@ in QEMU. The kernel shell prompt `C:/>` appears in the terminal. Try `dir`.
 To quit QEMU, press `Alt+2` (or `Esc` then `2`) and type `quit`. Alternatively, run
 `pkill qemu-system-x86_64` from another shell.
 
+> [!CAUTION]
+> **Expect one host CPU core at full load while the x86_64 kernel runs in QEMU.** The kernel is
+> an event-driven real-time kernel whose main loop polls without pause, and it never halts the
+> CPU when idle. The x86_64 port exists for tests and academic purposes in QEMU, not for real
+> x86_64 hardware. QEMU runs the guest CPU in one host thread, which then never goes idle. On a
+> modern desktop CPU (observed on an AMD Ryzen 5 9600X) the loop runs very fast, so that core
+> stays at full load and its temperature rises. This is expected for now and applies to both
+> `make x86_64-run` and `make x86_64-qemu-debug`. Reducing the idle load of the x86_64 port
+> (for example by halting the CPU until the next interrupt when there is no work) will be
+> investigated in the future.
+
 ## Debugging (x86_64)
 
 Terminal 1 starts QEMU paused, waiting for gdb on port 1234:
