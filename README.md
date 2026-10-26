@@ -93,9 +93,19 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 
 ## Environment setup
 
+There are three ways to set up the environment:
+
+| Where | How |
+|---|---|
+| Linux (Debian/Ubuntu PC or VM) | `tools/env/setup.sh`, see below |
+| Any Debian/Ubuntu Linux container you manage yourself (for example from `ubuntu:24.04`) | `tools/env/setup.sh` inside the container, the same as on Linux |
+| Windows | only through the [docker shell](#docker): `docker_shell.ps1` / `docker_shell.cmd`. Setting up or building directly on Windows isn't supported. |
+
+The docker shell also works on Linux and WSL (`docker_shell.sh`).
+
 `tools/env/setup.sh` builds the cross toolchains with [Buildroot](https://buildroot.org)
-and installs the distribution packages a target needs. It works on Debian/Ubuntu VMs and PCs,
-and the Docker image uses the same script.
+and installs the distribution packages a target needs. The docker shell images are built with
+the same script.
 
 ```bash
 tools/env/setup.sh x86_64          # or microblaze, avr, all
@@ -167,6 +177,15 @@ SSH keys for the GitHub fetches are never stored in the image:
 
   ```bash
   install -Dm600 /mnt/ssh/<key> ~/.ssh/<key> && ssh-add ~/.ssh/<key>
+  ```
+
+  Docker Desktop reads the mounted files as your Windows user, with a non-elevated token. If the
+  key's ACL grants access to Administrators only, the container gets "permission denied". Grant
+  your own user read access:
+
+  ```powershell
+  icacls "$env:USERPROFILE\.ssh" /grant "${env:USERNAME}:(RX)"
+  icacls "$env:USERPROFILE\.ssh\<key>" /grant "${env:USERNAME}:(R)"
   ```
 
 For AVR, `docker_shell.sh` passes the serial port into the container (`RPV_AVR_PORT`, default
