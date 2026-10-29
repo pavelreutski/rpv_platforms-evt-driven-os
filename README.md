@@ -27,7 +27,7 @@ src/
   scripts/                linker scripts
   fatfs/, lwip/           third-party library glue
 tools/cmake/              toolchain files and build helpers (ISO, QEMU, elf utils, AVR)
-tools/env/                environment setup: Buildroot toolchains, doctor, Docker image
+tools/env/                environment setup: Buildroot toolchains, env check, Docker image
 targets/x86_64/iso/       GRUB ISO tree (grub.cfg)
 ```
 
@@ -123,16 +123,21 @@ Notes:
 - The toolchains are installed in `~/opt/rpv/<target>`, with symlinks to the tools in
   `~/opt/rpv/bin`. Use `--prefix DIR` (or `RPV_ENV_PREFIX`) to install them elsewhere.
 - Missing packages are installed with `apt-get`, through `sudo` when not root.
-  With `--no-install`, nothing is installed and the script only checks.
+  With `--no-install`, no packages are installed: check them with `tools/env/env_check.sh`, then
+  install any missing ones yourself.
+- SSH keys are not set up by the environment tools. The builds fetch the kernel, security guardian
+  and FatFs over `git@github.com:...`, so install a key manually before building:
+  generate it with `ssh-keygen -t ed25519`, add the public key to your GitHub account, and check
+  with `ssh -T git@github.com`. In a container, see [Docker](#docker) for how keys are passed in.
 - `env.sh` has to be sourced in each new shell. `--shell-rc` adds it to `~/.bashrc`.
 - Versions are pinned in `tools/env/versions.env` (Buildroot release) and in the custom packages
   under `tools/env/buildroot/package/`.
 - After switching toolchains (for example between the host and the container), run `make clean`.
   CMake caches the compiler path.
 
-`tools/env/doctor.sh <target>` checks an environment without changing anything: compilers and
+`tools/env/env_check.sh <target>` checks an environment without changing anything: compilers and
 C23 support, MicroBlaze multilib, QEMU curses support, GRUB, SSH access to GitHub and the AVR
-serial port.
+serial port. `tools/env/setup.sh` runs it at the end, unless `--no-env-check` is given.
 
 ### Docker
 
