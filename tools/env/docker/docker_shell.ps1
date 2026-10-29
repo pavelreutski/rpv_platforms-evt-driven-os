@@ -54,16 +54,27 @@ if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
     $RunArgs += '-t'
 }
 
+# Mark the mounted repository as safe for Git inside the container.
+$RunArgs += @(
+    '-e', 'GIT_CONFIG_COUNT=1',
+    '-e', 'GIT_CONFIG_KEY_0=safe.directory',
+    '-e', 'GIT_CONFIG_VALUE_0=/work'
+)
+
 # The Windows ssh-agent can't be forwarded. The container starts its own;
 # the keys are mounted read-only for 'ssh-add', they never enter the image.
 $SshDir = Join-Path $env:USERPROFILE '.ssh'
 if (Test-Path $SshDir) {
     $RunArgs += @('-v', "${SshDir}:/mnt/ssh:ro")
-    Write-Host 'note: %USERPROFILE%\.ssh is mounted at /mnt/ssh, load a key with:'
+    Write-Host 'note: %USERPROFILE%\.ssh is mounted at /mnt/ssh.'
+    Write-Host '      All keys will be installed at container startup only. When additional ones required while container is already running, load a key with:'
     Write-Host '      install -Dm600 /mnt/ssh/<key> ~/.ssh/<key> && ssh-add ~/.ssh/<key>'
 }
 
 $RunArgs += $Image
+
+# Run repository-managed Linux startup logic.
+$RunArgs += @('/bin/bash', '/work/tools/env/docker/docker_start.sh')
 $RunArgs += $Command
 
 & docker @RunArgs
