@@ -35,7 +35,7 @@ RUN groupadd -o -g ${GID} rpv \
     && mkdir -p /opt/rpv /opt/rpv-env \
     && chown rpv:rpv /opt/rpv /opt/rpv-env
 
-COPY --chown=rpv:rpv doctor.sh /opt/rpv-env/
+COPY --chown=rpv:rpv env_check.sh /opt/rpv-env/
 
 # Starts an ssh-agent on SSH_AUTH_SOCK unless one is forwarded (docker_shell.sh)
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/rpv-entrypoint
@@ -58,16 +58,16 @@ USER rpv
 COPY --chown=rpv:rpv . /opt/rpv-env/
 
 FROM builder AS build-x86_64
-RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-doctor --no-install x86_64
+RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-env-check --no-install x86_64
 
 FROM builder AS build-microblaze
-RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-doctor --no-install microblaze
+RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-env-check --no-install microblaze
 
 FROM builder AS build-avr
-RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-doctor --no-install avr
+RUN /opt/rpv-env/setup.sh --prefix /opt/rpv --clean --no-env-check --no-install avr
 
 # ---------------------------------------------------------------------------
-# final images: runtime + target tools + toolchain, checked by doctor.sh
+# final images: runtime + target tools + toolchain, checked by env_check.sh
 # ---------------------------------------------------------------------------
 FROM runtime AS x86_64
 
@@ -79,14 +79,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 USER rpv
 COPY --from=build-x86_64 /opt/rpv/x86_64 /opt/rpv/x86_64
 COPY --from=build-x86_64 /opt/rpv/bin /opt/rpv/bin
-RUN /opt/rpv-env/doctor.sh --prefix /opt/rpv x86_64
+RUN /opt/rpv-env/env_check.sh --prefix /opt/rpv x86_64
 
 FROM runtime AS microblaze
 
 USER rpv
 COPY --from=build-microblaze /opt/rpv/microblaze /opt/rpv/microblaze
 COPY --from=build-microblaze /opt/rpv/bin /opt/rpv/bin
-RUN /opt/rpv-env/doctor.sh --prefix /opt/rpv microblaze
+RUN /opt/rpv-env/env_check.sh --prefix /opt/rpv microblaze
 
 FROM runtime AS avr
 
@@ -96,7 +96,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends avrdude \
 USER rpv
 COPY --from=build-avr /opt/rpv/avr /opt/rpv/avr
 COPY --from=build-avr /opt/rpv/bin /opt/rpv/bin
-RUN /opt/rpv-env/doctor.sh --prefix /opt/rpv avr
+RUN /opt/rpv-env/env_check.sh --prefix /opt/rpv avr
 
 FROM runtime AS all
 
@@ -112,4 +112,4 @@ COPY --from=build-avr /opt/rpv/avr /opt/rpv/avr
 COPY --from=build-x86_64 /opt/rpv/bin /opt/rpv/bin
 COPY --from=build-microblaze /opt/rpv/bin /opt/rpv/bin
 COPY --from=build-avr /opt/rpv/bin /opt/rpv/bin
-RUN /opt/rpv-env/doctor.sh --prefix /opt/rpv all
+RUN /opt/rpv-env/env_check.sh --prefix /opt/rpv all

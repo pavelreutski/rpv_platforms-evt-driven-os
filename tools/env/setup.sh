@@ -21,9 +21,9 @@ Options:
   --prefix DIR   install location (default: \$RPV_ENV_PREFIX or ~/opt/rpv)
   --jobs N       parallel jobs per package (default: nproc)
   --clean        remove the Buildroot build directory after a successful build
-  --no-doctor    skip the final environment check
-  --no-install   don't install packages: only check the Buildroot prerequisites,
-                 leave the target's distribution packages to doctor.sh
+  --no-env-check skip the final environment check
+  --no-install   don't install packages: check them with env_check.sh,
+                 then install any missing ones yourself
   --shell-rc     source env.sh from ~/.bashrc, so new shells have the toolchains
   -h, --help     show this help
 
@@ -48,7 +48,7 @@ log() {
 PREFIX="${RPV_ENV_PREFIX:-$HOME/opt/rpv}"
 JOBS="$(nproc)"
 CLEAN=0
-RUN_DOCTOR=1
+RUN_ENV_CHECK=1
 INSTALL=1
 SHELL_RC=0
 TARGETS=()
@@ -58,7 +58,7 @@ while [ $# -gt 0 ]; do
         --prefix)     PREFIX="${2:?--prefix needs a directory}"; shift ;;
         --jobs)       JOBS="${2:?--jobs needs a number}"; shift ;;
         --clean)      CLEAN=1 ;;
-        --no-doctor)  RUN_DOCTOR=0 ;;
+        --no-env-check) RUN_ENV_CHECK=0 ;;
         --no-install) INSTALL=0 ;;
         --shell-rc)   SHELL_RC=1 ;;
         -h|--help)    usage; exit 0 ;;
@@ -169,7 +169,7 @@ install_packages() {
 }
 
 # Buildroot prerequisites are required. Runtime packages are installed
-# too, unless --no-install is given; doctor.sh then reports them.
+# too, unless --no-install is given; env_check.sh then reports them.
 check_prereqs() {
     local pkgs
 
@@ -387,9 +387,9 @@ fi
 
 status=0
 
-if [ "$RUN_DOCTOR" -eq 1 ]; then
+if [ "$RUN_ENV_CHECK" -eq 1 ]; then
     log "Checking the environment"
-    "$ENV_DIR/doctor.sh" --prefix "$PREFIX" "${TARGETS[@]}" || status=$?
+    "$ENV_DIR/env_check.sh" --prefix "$PREFIX" "${TARGETS[@]}" || status=$?
 fi
 
 next_steps
