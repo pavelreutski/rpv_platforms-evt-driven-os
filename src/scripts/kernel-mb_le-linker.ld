@@ -5,215 +5,175 @@ ENTRY(_start)
 _STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x8000;
 _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0x800;
 
-/* Define Memories in the system */
+/*
+ * Memory map:
+ *   BRAM: 32 KiB at 0x00000000
+ *   DDR2: 96 MiB at 0x82000000
+ *
+ * The first 0x50 bytes of BRAM are reserved for MicroBlaze vectors.
+ * The reset vector at 0x00000000 belongs to the permanent BRAM
+ * boot stub/bootloader, not to the DDR2 application.
+ */
 
 MEMORY
 {
-   microblaze_0_local_memory_ilmb_bram_if_cntlr_Mem_microblaze_0_local_memory_dlmb_bram_if_cntlr_Mem : ORIGIN = 0x50, LENGTH = 0x1FFB0
-   mig_7series_0_memaddr : ORIGIN = 0x82000000, LENGTH = 0x06000000
+   vector_memory   : ORIGIN = 0x00000000, LENGTH = 0x00000050 /* 80 b */
+   local_memory    : ORIGIN = 0x00000050, LENGTH = 0x00007FB0 /* 32 Kb */
+   external_memory : ORIGIN = 0x82000000, LENGTH = 0x06000000 /* 96 Mb */
 }
-
-/* Define the sections, and where they are mapped in memory */
 
 SECTIONS
 {
-.vectors.reset ORIGIN(mig_7series_0_memaddr) : {
-   KEEP (*(.vectors.reset))
-} > mig_7series_0_memaddr
+   /*
+    * Application exception vectors in BRAM.
+    * Do not define .vectors.reset here: address 0x00000000
+    * is reserved for the permanent boot stub/bootloader.
+    */
 
-.vectors.sw_exception ORIGIN(mig_7series_0_memaddr) + 0x8 : {
-   KEEP (*(.vectors.sw_exception))
-} > mig_7series_0_memaddr
+   .vectors.sw_exception 0x00000008 : { KEEP (*(.vectors.sw_exception)) } > vector_memory
+   .vectors.interrupt 0x00000010 : { KEEP (*(.vectors.interrupt)) } > vector_memory
+   .vectors.hw_exception 0x00000020 : { KEEP (*(.vectors.hw_exception)) } > vector_memory
 
-.vectors.interrupt ORIGIN(mig_7series_0_memaddr) + 0x10 : {
-   KEEP (*(.vectors.interrupt))
-} > mig_7series_0_memaddr
+   .init : { KEEP (*(.init)) } > external_memory
+   .fini : { KEEP (*(.fini)) } > external_memory
 
-.vectors.hw_exception ORIGIN(mig_7series_0_memaddr) + 0x20 : {
-   KEEP (*(.vectors.hw_exception))
-} > mig_7series_0_memaddr
+   /*
+    * Application code and read-only data in external memory.
+    */
 
-.text : {
-   *(.text)
-   *(.text.*)
-   *(.gnu.linkonce.t.*)
-} > mig_7series_0_memaddr
+   .text : {
+      *(.text)
+      *(.text.*)
+      *(.gnu.linkonce.t.*)
+   } > external_memory
 
-.init : {
-   KEEP (*(.init))
-} > mig_7series_0_memaddr
+   .rodata : {
+      __rodata_start = .;
+      *(.rodata)
+      *(.rodata.*)
+      *(.gnu.linkonce.r.*)
+      __rodata_end = .;
+   } > external_memory  
 
-.fini : {
-   KEEP (*(.fini))
-} > mig_7series_0_memaddr
+   .data : {
+      . = ALIGN(4);
+      __data_start = .;
+      *(.data)
+      *(.data.*)
+      *(.gnu.linkonce.d.*)
 
-.ctors : {
-   __CTOR_LIST__ = .;
-   ___CTORS_LIST___ = .;
-   KEEP (*crtbegin.o(.ctors))
-   KEEP (*(EXCLUDE_FILE(*crtend.o) .ctors))
-   KEEP (*(SORT(.ctors.*)))
-   KEEP (*(.ctors))
-   __CTOR_END__ = .;
-   ___CTORS_END___ = .;
-} > mig_7series_0_memaddr
+      /* Commands section */
 
-.dtors : {
-   __DTOR_LIST__ = .;
-   ___DTORS_LIST___ = .;
-   KEEP (*crtbegin.o(.dtors))
-   KEEP (*(EXCLUDE_FILE(*crtend.o) .dtors))
-   KEEP (*(SORT(.dtors.*)))
-   KEEP (*(.dtors))
-   PROVIDE(__DTOR_END__ = .);
-   PROVIDE(___DTORS_END___ = .);
-} > mig_7series_0_memaddr
+      . = ALIGN(4); /* ensure 4 bytes alignment */
 
-.rodata : {
-   __rodata_start = .;
-   *(.rodata)
-   *(.rodata.*)
-   *(.gnu.linkonce.r.*)
-   __rodata_end = .;
-} > mig_7series_0_memaddr
+      __cmd_table = .;
+      KEEP(*(.cmd_table))
+      __end_cmd_table = .;   
 
-.sdata2 : {
-   . = ALIGN(8);
-   __sdata2_start = .;
-   *(.sdata2)
-   *(.sdata2.*)
-   *(.gnu.linkonce.s2.*)
-   . = ALIGN(8);
-   __sdata2_end = .;
-} > mig_7series_0_memaddr
+      /* Services section */
 
-.sbss2 : {
-   __sbss2_start = .;
-   *(.sbss2)
-   *(.sbss2.*)
-   *(.gnu.linkonce.sb2.*)
-   __sbss2_end = .;
-} > mig_7series_0_memaddr
+      __svcinit_table = .;
+      KEEP(*(.service_init))
+      __end_svcinit_table = .;
 
-.data : {
-   . = ALIGN(4);
-   __data_start = .;
-   *(.data)
-   *(.data.*)
-   *(.gnu.linkonce.d.*)
+      __svc_table = .;
+      KEEP(*(.service_table))
+      __end_svc_table = .;
 
-   /* Commands section */
+      __data_end = .;
+   } > external_memory
+   
+   .sdata2 : {
+      . = ALIGN(8);
+      __sdata2_start = .;
+      *(.sdata2)
+      *(.sdata2.*)
+      *(.gnu.linkonce.s2.*)
+      . = ALIGN(8);
+      __sdata2_end = .;
+   } > external_memory
+   
+   .sbss2 (NOLOAD) :
+    {
+        . = ALIGN(8);
+        __sbss2_start = .;
 
-   . = ALIGN(4); /* ensure 4 bytes alignment */
+        *(.sbss2)
+        *(.sbss2.*)
+        *(.gnu.linkonce.sb2.*)
 
-    __cmd_table = .;
-    KEEP(*(.cmd_table))
-    __end_cmd_table = .;   
+        . = ALIGN(8);
+        __sbss2_end = .;
+    } > external_memory   
 
-   /* Services section */
+   .sdata : {
+      . = ALIGN(8);
+      __sdata_start = .;
+      *(.sdata)
+      *(.sdata.*)
+      *(.gnu.linkonce.s.*)
+      __sdata_end = .;
+   } > external_memory
 
-   __svcinit_table = .;
-    KEEP(*(.service_init))
-    __end_svcinit_table = .;
+   /*
+    * Uninitialized data. The CRT must clear this range.
+    */
+   .sbss (NOLOAD) : {
+      . = ALIGN(4);
+      __sbss_start = .;
+      *(.sbss)
+      *(.sbss.*)
+      *(.gnu.linkonce.sb.*)
+      . = ALIGN(8);
+      __sbss_end = .;
+   } > external_memory   
 
-    __svc_table = .;
-    KEEP(*(.service_table))
-    __end_svc_table = .;
+   .bss (NOLOAD) : {
+      . = ALIGN(4);
+      __bss_start = .;
+      *(.bss)
+      *(.bss.*)
+      *(.gnu.linkonce.b.*)
+      *(COMMON)
+      . = ALIGN(4);
+      __bss_end = .;
+   } > external_memory
 
-   __data_end = .;
-} > mig_7series_0_memaddr
+   .eh_frame : {
+      . = ALIGN(4); 
+      __eh_frame_start = .;
+      KEEP(*(.eh_frame))
+      KEEP(*(.eh_frame.*))
+      __eh_frame_end = .;
+    } > external_memory
 
-.got : {
-   *(.got)
-} > mig_7series_0_memaddr
+   /*
+    * MicroBlaze small-data base addresses.
+    */
+   _SDA_BASE_ = __sdata_start + ((__sbss_end - __sdata_start) / 2 );
+   _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
 
-.got1 : {
-   *(.got1)
-} > mig_7series_0_memaddr
+   /*
+    * Heap and stack in external memory.
+    */
+   .heap (NOLOAD) : {
+      . = ALIGN(8);
+      _heap = .;
+      _heap_start = .;
+      . += _HEAP_SIZE;
+      _heap_end = .;
+   } > external_memory
 
-.got2 : {
-   *(.got2)
-} > mig_7series_0_memaddr
+   .stack (NOLOAD) : {
+      _stack_end = .;
+      . += _STACK_SIZE;
+      . = ALIGN(8);
+      _stack = .;
+      __stack = _stack;
+   } > external_memory
 
-.eh_frame : {
-   *(.eh_frame)
-} > mig_7series_0_memaddr
+   _end = .;
 
-.jcr : {
-   *(.jcr)
-} > mig_7series_0_memaddr
-
-.gcc_except_table : {
-   *(.gcc_except_table)
-} > mig_7series_0_memaddr
-
-.sdata : {
-   . = ALIGN(8);
-   __sdata_start = .;
-   *(.sdata)
-   *(.sdata.*)
-   *(.gnu.linkonce.s.*)
-   __sdata_end = .;
-} > mig_7series_0_memaddr
-
-.sbss (NOLOAD) : {
-   . = ALIGN(4);
-   __sbss_start = .;
-   *(.sbss)
-   *(.sbss.*)
-   *(.gnu.linkonce.sb.*)
-   . = ALIGN(8);
-   __sbss_end = .;
-} > mig_7series_0_memaddr
-
-.tdata : {
-   __tdata_start = .;
-   *(.tdata)
-   *(.tdata.*)
-   *(.gnu.linkonce.td.*)
-   __tdata_end = .;
-} > mig_7series_0_memaddr
-
-.tbss : {
-   __tbss_start = .;
-   *(.tbss)
-   *(.tbss.*)
-   *(.gnu.linkonce.tb.*)
-   __tbss_end = .;
-} > mig_7series_0_memaddr
-
-.bss (NOLOAD) : {
-   . = ALIGN(4);
-   __bss_start = .;
-   *(.bss)
-   *(.bss.*)
-   *(.gnu.linkonce.b.*)
-   *(COMMON)
-   . = ALIGN(4);
-   __bss_end = .;
-} > mig_7series_0_memaddr
-
-_SDA_BASE_ = __sdata_start + ((__sbss_end - __sdata_start) / 2 );
-
-_SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
-
-/* Generate Stack and Heap definitions */
-
-.heap (NOLOAD) : {
-   . = ALIGN(8);
-   _heap = .;
-   _heap_start = .;
-   . += _HEAP_SIZE;
-   _heap_end = .;
-} > mig_7series_0_memaddr
-
-.stack (NOLOAD) : {
-   _stack_end = .;
-   . += _STACK_SIZE;
-   . = ALIGN(8);
-   _stack = .;
-   __stack = _stack;
-} > mig_7series_0_memaddr
-
-_end = .;
+   ASSERT(_end <= ORIGIN(external_memory) + LENGTH(external_memory),
+           "DDR2 application exceeds external_memory")
 }

@@ -1,11 +1,8 @@
 /*      
-        MicroBlaze Vector Map for standalone executables
+        MicroBlaze Vector Map for standalone executables (BRAM vectors)
 
          Address                Vector type                 Label
-         -------                -----------                 ------    
-
-    	# 0x00 #		(-- IMM --)
-	# 0x04 #                Reset                       _start1
+         -------                -----------                 ------
     
 	# 0x08 #		(-- IMM --)
 	# 0x0c #		Software Exception          _exception_handler
@@ -18,15 +15,7 @@
     
         # 0x20 #                (-- IMM --) 
         # 0x24 #                Hardware Exception          _hw_exception_handler
-*/
-	.globl _start
-        .section .vectors.reset, "ax"
-        .ent _start
-        .align 2
-_start:
-        brai    _start1 /* jump to start at reset */
-        .end _start
-    
+*/  
         .section .vectors.sw_exception, "ax"
         .align 2
 _vector_sw_exception:       
@@ -44,15 +33,17 @@ _vector_hw_exception:
 
         .section .text
 
-        .globl _start1
-        .ent _start1
+/* Application entry */
+
+        .globl _start
+        .ent _start
         .align 2 
-_start1:
+_start:
 	la	r13, r0, _SDA_BASE_         /* Set the Small Data Anchors and the stack pointer */
 	la	r2, r0, _SDA2_BASE_
-	la	r1, r0, _stack              
+	la	r1, r0, _stack
 
-	brlid	r15, _crtinit               /* Initialize BSS */
+	brlid	r15, _crtinit               /* Initialize SBSS2, SBSS and BSS */
 	nop
 
         brlid   r15, main                   /* Call main */
@@ -60,7 +51,7 @@ _start1:
 
 .exit:  bri     0                           /* Loop forever since main shouldn`t return */              
 
-        .end _start1
+        .end _start
 
 /* Software exception */
 

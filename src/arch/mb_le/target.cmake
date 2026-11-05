@@ -45,5 +45,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE ./include/mb_le)
 target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Map,$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map
                                             -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/scripts/kernel-mb_le-linker.ld)
 
-elf_dump(${PROJECT_NAME})
+# Issue: Currently std elf dump utility not usable here since produces a huge image binary
+# Reason: Application has branch instructions at MicroBlaze vector table entries in BRAM jumping to DDR2 handlers.
+# Solution: Since between BRAM and DDR2 memories there is a huge address space gap leading to huge binary image generation 
+#           it requires generate either separate binaries or introduce a bootloader running in BRAM that loads DDR2 application at CPU reset
+
+# elf_dump(${PROJECT_NAME})
+
 elf_mem_size(${PROJECT_NAME})

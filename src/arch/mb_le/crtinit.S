@@ -1,9 +1,23 @@
+        .section .text
+
         .globl _crtinit
         .ent _crtinit
         .align 2
 _crtinit:
         addi	r1, r1, -20                 /* Save Link register	 */
         swi	r15, r1, 0
+
+        addi    r6, r0, __sbss2_start       /* clear SBSS2 */
+        addi    r7, r0, __sbss2_end
+        rsub    r18, r6, r7
+        blei    r18, .Lendsbss2
+
+.Lloopsbss2:
+        swi     r0, r6, 0
+        addi    r6, r6, 4
+        rsub    r18, r6, r7
+        bgti    r18, .Lloopsbss2
+.Lendsbss2:
 
         addi	r6, r0, __sbss_start        /* clear SBSS */
         addi	r7, r0, __sbss_end	
