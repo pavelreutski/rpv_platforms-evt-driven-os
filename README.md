@@ -31,10 +31,10 @@ tools/env/                environment setup: Buildroot toolchains, env check, Do
 targets/x86_64/iso/       GRUB ISO tree (grub.cfg)
 ```
 
-## Requirements
+## Environment setup (Manual)
 
-`tools/env/setup.sh` sets up everything listed below for a target (see
-[Environment setup](#environment-setup)). The lists document what a manual setup needs.
+`tools/env/setup.sh` sets up everything listed below for all targets (see
+[Automatic environment setup](#environment-setup)). The lists document what a manual setup needs per target.
 
 Common to all targets:
 
@@ -47,7 +47,7 @@ Common to all targets:
 | Tool | Purpose |
 |---|---|
 | `x86_64-elf-gcc`, `x86_64-elf-binutils` | bare-metal cross compiler (on `PATH`) |
-| newlib headers | libc headers only (`string.h`, `stdlib.h`, `assert.h`), no libc is linked |
+| newlib headers | libc headers only (`string.h`, `stdlib.h`, `assert.h` etc.), no libc is linked |
 | `nasm` | boot and low-level assembly |
 | `grub-mkrescue`, `grub-pc-bin`, `xorriso`, `mtools` | bootable ISO |
 | `sfdisk` (`fdisk` package), `dosfstools`, `mtools` | FAT16 IDE disk image for QEMU |
@@ -59,20 +59,20 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 
 #### QEMU with curses support
 
-> [!CAUTION]
+> [!IMPORTANT]
 > **QEMU must be built with curses support.** The run and debug targets start QEMU with
 > `-display curses`, which draws the VGA text console in the terminal, with no GUI needed.
-> Without curses support, QEMU fails to start. Debian's `qemu-system-x86` package includes it.
+> Without curses support, QEMU fails to start (in context where no GUI e.g. docker container context). Debian's `qemu-system-x86` package includes it.
 > If QEMU is installed from sources, it must be compiled with `--enable-curses`.
 > Check with `qemu-system-x86_64 -display help`; the list must contain `curses`.
 
 ### Microchip AVR
 
 - `avr-gcc` 9.1 or newer, `avr-binutils`, `avr-libc` (AVR-LibC)
-- `avrdude`. It's needed even to configure, because the CMake files look for it.
-- An Arduino-compatible board on `/dev/ttyACM0` for flashing
+- `avrdude`. It's needed even to configure, because it is required for the CMake prog device target.
+- An Arduino-compatible board on `/dev/ttyACM0` for flashing. There is no support for other clones if not fully compatible.
 
-> [!CAUTION]
+> [!NOTE]
 > **The distribution's `gcc-avr` package is too old.** The AVR target is compiled as C23
 > (`c_std_23`), and CMake supports C23 only for GCC 9.1 and newer. Debian's `gcc-avr` is GCC 7.3,
 > so CMake configure fails with `The compiler feature "c_std_23" is not known`.
@@ -87,11 +87,11 @@ Debian packages: `build-essential`, `nasm`, `grub-common`, `grub-pc-bin`, `xorri
 - No Xilinx SDK/BSP is used. The startup code, interrupt vectors, linker script and drivers are all
   part of this repository.
 
-> [!CAUTION]
+> [!NOTE]
 > **AMD/Xilinx Vitis is not used, for licensing reasons.** The toolchain is built from sources.
 > Vitis' compiler is also named `microblaze-xilinx-elf-*`, not `microblaze-elf-*`.
 
-## Environment setup
+## Environment setup (Automatic script driven)
 
 There are three ways to set up the environment:
 
@@ -101,13 +101,17 @@ There are three ways to set up the environment:
 | Any Debian/Ubuntu Linux container you manage yourself (for example from `ubuntu:24.04`) | `tools/env/setup.sh` inside the container, the same as on Linux |
 | Windows | only through the [docker shell](#docker): `docker_shell.ps1` / `docker_shell.cmd`. Setting up or building directly on Windows isn't supported. |
 
-The docker shell also works on Linux and WSL (`docker_shell.sh`).
+> [!NOTE]
+> The docker shell also should work on Linux (`docker_shell.sh`).
+> [!IMPORTANT]
+> Not tested since no real use case existed.
 
 `tools/env/setup.sh` builds the cross toolchains with [Buildroot](https://buildroot.org)
 and installs the distribution packages a target needs. The docker shell images are built with
 the same script.
 
 ```bash
+tools/env/setup.sh --help          # explore all possible targets / options
 tools/env/setup.sh x86_64          # or microblaze, avr, all
 . ~/opt/rpv/env.sh                 # put the toolchains on PATH
 ```
@@ -123,21 +127,22 @@ Notes:
 - The toolchains are installed in `~/opt/rpv/<target>`, with symlinks to the tools in
   `~/opt/rpv/bin`. Use `--prefix DIR` (or `RPV_ENV_PREFIX`) to install them elsewhere.
 - Missing packages are installed with `apt-get`, through `sudo` when not root.
-  With `--no-install`, no packages are installed: check them with `tools/env/env_check.sh`, then
+  With `--no-install` option, no packages are installed: check them with `tools/env/env_check.sh`, then
   install any missing ones yourself.
 - SSH keys are not set up by the environment tools. The builds fetch the kernel, security guardian
   and FatFs over `git@github.com:...`, so install a key manually before building:
   generate it with `ssh-keygen -t ed25519`, add the public key to your GitHub account, and check
   with `ssh -T git@github.com`. In a container, see [Docker](#docker) for how keys are passed in.
-- `env.sh` has to be sourced in each new shell. `--shell-rc` adds it to `~/.bashrc`.
+- `env.sh` has to be sourced in each new shell. `--shell-rc` option adds it to `~/.bashrc`.
+> [!NOTE]
+> in case when env.sh sourced from ~/.bashrc added by '--shell-rc'. As well-known a shell relaunch required so env.sh take effect or source '~/.bashrc' within current shell.
 - Versions are pinned in `tools/env/versions.env` (Buildroot release) and in the custom packages
   under `tools/env/buildroot/package/`.
-- After switching toolchains (for example between the host and the container), run `make clean`.
-  CMake caches the compiler path.
+> [!IMPORTANT] After switching toolchains, run `make clean` from project root. CMake caches the compiler path.
 
 `tools/env/env_check.sh <target>` checks an environment without changing anything: compilers and
 C23 support, MicroBlaze multilib, QEMU curses support, GRUB, SSH access to GitHub and the AVR
-serial port. `tools/env/setup.sh` runs it at the end, unless `--no-env-check` is given.
+serial port. `tools/env/setup.sh` runs it at the end, unless `--no-env-check` option is given.
 
 ### Docker
 
@@ -176,8 +181,7 @@ tools\env\docker\docker_shell.ps1 --rebuild x86_64
 
 SSH keys for the GitHub fetches are never stored in the image:
 
-- `docker_shell.sh` forwards the host's ssh-agent.
-- Without a forwarded agent, the container starts its own. Load a key with `ssh-add <key>`.
+The container might start its own 'ssh-agent'. Load a key with `ssh-add <key>`.
   `docker_shell.ps1` mounts `%USERPROFILE%\.ssh` read-only at `/mnt/ssh`:
 
   ```bash
@@ -194,8 +198,11 @@ SSH keys for the GitHub fetches are never stored in the image:
   ```
 
 For AVR, `docker_shell.sh` passes the serial port into the container (`RPV_AVR_PORT`, default
-`/dev/ttyACM0`). On Windows, passing USB devices to Docker isn't supported by the script:
-flash from a Linux or WSL host.
+`/dev/ttyACM0`). 
+
+On Windows, passing USB devices to Docker isn't supported by the script:
+flash from a Linux or WSL host. Or use [WSL USB Manager](https://github.com/nickbeth/wsl-usb-manager) attaching an Arduino to all wsl instances before starting a docker shell.
+> [!IMPORTANT] You might modify the `docker_shell.ps1` locally (maybe through `compose.yaml` defining usb volume and device) to make it being visible as `/dev/ttyACM0` in started container
 
 ## Building
 
@@ -236,7 +243,7 @@ in QEMU. The kernel shell prompt `C:/>` appears in the terminal. Try `dir`.
 To quit QEMU, press `Alt+2` (or `Esc` then `2`) and type `quit`. Alternatively, run
 `pkill qemu-system-x86_64` from another shell.
 
-> [!CAUTION]
+> [!NOTE]
 > **Expect one host CPU core at full load while the x86_64 kernel runs in QEMU.** The kernel is
 > an event-driven real-time kernel whose main loop polls without pause, and it never halts the
 > CPU when idle. The x86_64 port exists for tests and academic purposes in QEMU, not for real
