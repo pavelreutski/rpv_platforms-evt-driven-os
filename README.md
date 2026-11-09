@@ -33,8 +33,7 @@ targets/x86_64/iso/       GRUB ISO tree (grub.cfg)
 
 ## Environment setup (Manual)
 
-`tools/env/setup.sh` sets up everything listed below for all targets (see
-[Automatic environment setup](#environment-setup)). The lists document what a manual setup needs per target.
+`tools/env/setup.sh` sets up everything listed below for all targets (see [Automatic environment setup](#environment-setup-automatic-script-driven)). The lists document what a manual setup needs per target.
 
 Common to all targets:
 
@@ -102,9 +101,7 @@ There are three ways to set up the environment:
 | Windows | only through the [docker shell](#docker): `docker_shell.ps1` / `docker_shell.cmd`. Setting up or building directly on Windows isn't supported. |
 
 > [!NOTE]
-> The docker shell also should work on Linux (`docker_shell.sh`).
-> [!IMPORTANT]
-> Not tested since no real use case existed.
+> The docker shell also should work on Linux (`docker_shell.sh`). Not tested since no real use case existed.
 
 `tools/env/setup.sh` builds the cross toolchains with [Buildroot](https://buildroot.org)
 and installs the distribution packages a target needs. The docker shell images are built with
@@ -134,11 +131,15 @@ Notes:
   generate it with `ssh-keygen -t ed25519`, add the public key to your GitHub account, and check
   with `ssh -T git@github.com`. In a container, see [Docker](#docker) for how keys are passed in.
 - `env.sh` has to be sourced in each new shell. `--shell-rc` option adds it to `~/.bashrc`.
+- 
 > [!NOTE]
-> in case when env.sh sourced from ~/.bashrc added by '--shell-rc'. As well-known a shell relaunch required so env.sh take effect or source '~/.bashrc' within current shell.
+> In case when env.sh sourced from `~/.bashrc` added by `--shell-rc`. As well-known a shell relaunch required so env.sh take effect or source `~/.bashrc` within current shell.
+
 - Versions are pinned in `tools/env/versions.env` (Buildroot release) and in the custom packages
   under `tools/env/buildroot/package/`.
-> [!IMPORTANT] After switching toolchains, run `make clean` from project root. CMake caches the compiler path.
+  
+> [!IMPORTANT]
+> After switching toolchains, run `make clean` from project root. CMake caches the compiler path.
 
 `tools/env/env_check.sh <target>` checks an environment without changing anything: compilers and
 C23 support, MicroBlaze multilib, QEMU curses support, GRUB, SSH access to GitHub and the AVR
@@ -202,7 +203,9 @@ For AVR, `docker_shell.sh` passes the serial port into the container (`RPV_AVR_P
 
 On Windows, passing USB devices to Docker isn't supported by the script:
 flash from a Linux or WSL host. Or use [WSL USB Manager](https://github.com/nickbeth/wsl-usb-manager) attaching an Arduino to all wsl instances before starting a docker shell.
-> [!IMPORTANT] You might modify the `docker_shell.ps1` locally (maybe through `compose.yaml` defining usb volume and device) to make it being visible as `/dev/ttyACM0` in started container
+
+> [!IMPORTANT]
+> You might modify the `docker_shell.ps1` locally (maybe through `compose.yaml` defining usb volume and device) to make it being visible as `/dev/ttyACM0` in started container.
 
 ## Building
 
