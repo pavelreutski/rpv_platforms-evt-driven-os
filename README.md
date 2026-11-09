@@ -131,7 +131,7 @@ Notes:
   generate it with `ssh-keygen -t ed25519`, add the public key to your GitHub account, and check
   with `ssh -T git@github.com`. In a container, see [Docker](#docker) for how keys are passed in.
 - `env.sh` has to be sourced in each new shell. `--shell-rc` option adds it to `~/.bashrc`.
-- 
+
 > [!NOTE]
 > In case when env.sh sourced from `~/.bashrc` added by `--shell-rc`. As well-known a shell relaunch required so env.sh take effect or source `~/.bashrc` within current shell.
 
