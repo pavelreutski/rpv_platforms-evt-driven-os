@@ -25,10 +25,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(sec-guardian)
 
 # use fatfs as files I/O backend
-include(./fatfs/fatfs.cmake)
+include(fatfs)
 
 # use lwip as tcp/ip stack
-include(./lwip/lwip.cmake)
+include(lwip)
 
 file(GLOB KERNEL_MBLE_ASM_SOURCES CONFIGURE_DEPENDS ./arch/mb_le/*.S)
 file(GLOB_RECURSE KERNEL_MBLE_C_SOURCES CONFIGURE_DEPENDS ./arch/mb_le/*.c)
