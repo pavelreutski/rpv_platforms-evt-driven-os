@@ -18,7 +18,7 @@ include(qemu-x86_64-simul)
 include(kernel-x86_64-iso)
 
 # use fatfs as files I/O backend
-include(./fatfs/fatfs.cmake)
+include(fatfs)
 
 # x86_64 system platform
 add_subdirectory(./arch/x86_64/sys)

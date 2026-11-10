@@ -5,7 +5,9 @@ project(rpv-evt-driven-platforms
         DESCRIPTION "rpv event driven platforms solution")
 
 # set/add solution cmake modules path
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/tools/cmake)
+list(APPEND CMAKE_MODULE_PATH 
+            "${CMAKE_SOURCE_DIR}/tools/cmake"
+            "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 include(FetchContent)
 
